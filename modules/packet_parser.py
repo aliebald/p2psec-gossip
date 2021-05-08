@@ -31,18 +31,34 @@ def get_header_type(buf):
     return int.from_bytes(buf[2:4], "big")
 
 
+def check_size(buf):
+    return len(buf) == get_header_size(buf)
+
+
 def parse_gossip_announce(buf):
     """Parses a gossip_announce to a human-readable 6-tuple or null
        [!] Does not check for correct subscriber datatype
 
        Input: packet as byte-object
-       Return: tuple  
-               as    (int,int,int,int,int,string)
+       Return: tuple (size, type, ttl, res, datatype, data     )
+               as    (int , int , int, int, int     , hexstring)
        Error: return Null
     """
     # TODO: try catch mit unpack format fehler
     # TODO: falscher type?
-    # TODO: 
     packet_no_data = unpack(FORMAT_GOSSIP_ANNOUNCE, buf[:8])
     data = (bytes.decode(buf[8:]),)
     return packet_no_data + data
+
+
+def parse_gossip_notify(buf):
+    packet = unpack(FORMAT_GOSSIP_NOTIFY, buf[:8])
+    return
+
+
+def parse_gossip_notification(buf):
+    return
+
+
+def parse_gossip_validation(buf):
+    return
