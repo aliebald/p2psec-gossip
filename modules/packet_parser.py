@@ -18,10 +18,31 @@ FORMAT_GOSSIP_VALIDATION = "!HHHH"
 
 
 def get_header_size(buf):
-    """Returns the body size in the packet header"""
+    """Returns the body size in the packet header
+       Input:  packet as byte-object
+       Return: boolean"""
     return int.from_bytes(buf[:2], "big")
 
 
 def get_header_type(buf):
-    """Returns the message type in the packet header"""
+    """Returns the message type in the packet header
+       Input: packet as byte-object
+       Return: boolean"""
     return int.from_bytes(buf[2:4], "big")
+
+
+def parse_gossip_announce(buf):
+    """Parses a gossip_announce to a human-readable 6-tuple or null
+       [!] Does not check for correct subscriber datatype
+
+       Input: packet as byte-object
+       Return: tuple  
+               as    (int,int,int,int,int,string)
+       Error: return Null
+    """
+    # TODO: try catch mit unpack format fehler
+    # TODO: falscher type?
+    # TODO: 
+    packet_no_data = unpack(FORMAT_GOSSIP_ANNOUNCE, buf[:8])
+    data = (bytes.decode(buf[8:]),)
+    return packet_no_data + data
