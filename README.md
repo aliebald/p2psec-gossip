@@ -1,5 +1,14 @@
 # Gossip
 
+# Config
+
+The following settings can be adjusted in the `config.ini` file in the root directory
+
+- `cache_size`: _TODO Documentation_
+- `max_connections`: _TODO Documentation_
+- `bootstrapper`: _TODO Documentation_
+- `p2p_address`: _TODO Documentation_
+- `api_address`: _TODO Documentation_
 
 # Git Workflow
 
