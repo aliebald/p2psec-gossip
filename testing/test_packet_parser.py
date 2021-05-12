@@ -8,25 +8,28 @@ class Test_header_funcs(unittest.TestCase):
     def test_parse_gossip_announce(self):
         # Note: We test for correct parsing, wo do not test whether the
         #       field values make sense.
-        
-        # TODO: adjust for stripped header packet! 
 
         # correct packet
         test_packet = pack(pp.FORMAT_GOSSIP_ANNOUNCE+"H", 10, 500, 0, 0, 0, 0)
         self.assertEqual(pp.parse_gossip_announce(test_packet),
-                         (10, 500, 0, 0, 0, b'\x00\x00'),
+                         (0, 0, 0, b'\x00\x00'),
                          "Gossip Announce parsed incorrectly")
 
         # correct packet: correct size, empty data
         test_packet = pack(pp.FORMAT_GOSSIP_ANNOUNCE, 8, 500, 0, 0, 0)
         self.assertEqual(pp.parse_gossip_announce(test_packet),
-                         (8, 500, 0, 0, 0, b''),
+                         (0, 0, 0, b''),
                          "Empty data was not parsed correctly")
 
         # wrong packet: empty buffer (b'')
         test_packet = b''
         self.assertEqual(pp.parse_gossip_announce(test_packet),
                          (), "Empty byte (b'') should return empty tuple")
+
+        # wrong packet: incorrect message type
+        test_packet = pack(pp.FORMAT_GOSSIP_ANNOUNCE, 8, 600, 0, 0, 0)
+        self.assertEqual(pp.parse_gossip_announce(test_packet),
+                         (), "Wrong message type should return empty tuple")
 
         # wrong packet: correct size, packet too small
         test_packet = pack("!HHBB", 6, 500, 0, 0)
