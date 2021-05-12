@@ -8,6 +8,8 @@ class Test_header_funcs(unittest.TestCase):
     def test_parse_gossip_announce(self):
         # Note: We test for correct parsing, wo do not test whether the
         #       field values make sense.
+        
+        # TODO: adjust for stripped header packet! 
 
         # correct packet
         test_packet = pack(pp.FORMAT_GOSSIP_ANNOUNCE+"H", 10, 500, 0, 0, 0, 0)
