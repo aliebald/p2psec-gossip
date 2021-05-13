@@ -70,7 +70,6 @@ def parse_gossip_announce(buf):
            tuple (): Error"""
     # check header: size
     if not(__check_size(buf)):
-        # print("!! packet size incorrect")
         return ()
 
     try:
@@ -82,7 +81,6 @@ def parse_gossip_announce(buf):
         else:
             return ()
     except error:
-        # print("!! Struct parsing error.")
         return ()
 
 
@@ -94,8 +92,7 @@ def parse_gossip_notify(buf):
            buf -- packet as byte-object
 
        Returns:
-           body as tuple  (datatype)
-                          (int     )
+           datatype as int
 
            Error as tuple ()"""
 
@@ -103,7 +100,7 @@ def parse_gossip_notify(buf):
     if not(__check_size(buf)):
         return ()
     # check: no data present
-    if __get_header_size(buf) > 8:
+    if __get_header_size(buf) != 8:
         return ()
 
     try:
@@ -111,12 +108,11 @@ def parse_gossip_notify(buf):
 
         if packet_tuple[1] == GOSSIP_NOTIFY:
             # strip header
-            stripped_packet = packet_tuple[2:]
-            return stripped_packet
+            datatype = packet_tuple[3]
+            return datatype
         else:
             return ()
     except error:
-        # print("!! Struct parsing error.")
         return ()
 
 
@@ -138,15 +134,15 @@ def parse_gossip_notification(buf):
 
     try:
         packet_tuple_no_data = unpack(FORMAT_GOSSIP_NOTIFICATION, buf[:8])
-        data = buf[8:]
-        if packet_tuple_no_data[1] == GOSSIP_NOTIFY:
+        data = (buf[8:],)
+        # check msg_type
+        if packet_tuple_no_data[1] == GOSSIP_NOTIFICATION:
             # strip header
             stripped_packet = packet_tuple_no_data[2:]
             return stripped_packet + data
         else:
             return ()
     except error:
-        # print("!! Struct parsing error.")
         return ()
 
 
@@ -168,7 +164,7 @@ def parse_gossip_validation(buf):
 
     try:
         packet_tuple = unpack(FORMAT_GOSSIP_VALIDATION, buf[:8])
-        if packet_tuple[1] == GOSSIP_NOTIFY:
+        if packet_tuple[1] == GOSSIP_VALIDATION:
             # strip header
             # (msg_id, int)
             packet_tuple_stripped = packet_tuple[2:]
@@ -180,5 +176,4 @@ def parse_gossip_validation(buf):
         else:
             return ()
     except error:
-        # print("!! Struct parsing error.")
         return ()
