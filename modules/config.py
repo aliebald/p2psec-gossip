@@ -11,11 +11,21 @@ class Config:
         configparser.read(path)
         self.__check_required_fields_exist(configparser)
 
+        # Parse required Fields
         self.cache_size = configparser["gossip"]["cache_size"]
         self.max_connections = configparser["gossip"]["max_connections"]
         self.bootstrapper = configparser["gossip"]["bootstrapper"]
         self.p2p_address = configparser["gossip"]["p2p_address"]
         self.api_address = configparser["gossip"]["api_address"]
+
+        # Parse non required fields
+        # Parse known_peers. If none are set, use an empty list
+        if ("known_peers" in configparser["gossip"] and
+                len(configparser["gossip"]["known_peers"]) > 0):
+            self.known_peers = (configparser["gossip"]["known_peers"]).replace(
+                " ", "").split(",")
+        else:
+            self.known_peers = []
 
     # Prints all available keys and theire values.
     def print_config(self):
@@ -25,6 +35,7 @@ class Config:
         print("bootstrapper = {}".format(self.bootstrapper))
         print("p2p_address = {}".format(self.p2p_address))
         print("api_address = {}".format(self.api_address))
+        print("known_peers = {}".format(self.known_peers))
 
     # Checks is all required sections and keys exists in the given ConfigParser
     # If a required field does not exist, a KeyError exception is raised
