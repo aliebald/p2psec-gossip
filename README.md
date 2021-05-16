@@ -4,11 +4,15 @@
 
 The following settings can be adjusted in the `config.ini` file in the root directory
 
-- `cache_size`: _TODO Documentation_
+- `cache_size`: Maximum number of data items to be held as part of the peer's knowl-
+edge base. Older items will be removed to ensure space for newer items if the peer's
+knowledge base exceeds this limit.
+- `degree`: Number of peers the current peer has to exchange information with.
 - `max_connections`: _TODO Documentation_
 - `bootstrapper`: _TODO Documentation_
 - `p2p_address`: _TODO Documentation_
 - `api_address`: _TODO Documentation_
+- `known_peers`: comma separated list containing ip addresses of potential Peers
 
 # Git Workflow
 
