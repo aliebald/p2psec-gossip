@@ -13,6 +13,7 @@ class Config:
 
         # Parse required Fields
         self.cache_size = configparser["gossip"]["cache_size"]
+        self.degree = configparser["gossip"]["degree"]
         self.max_connections = configparser["gossip"]["max_connections"]
         self.bootstrapper = configparser["gossip"]["bootstrapper"]
         self.p2p_address = configparser["gossip"]["p2p_address"]
@@ -30,17 +31,13 @@ class Config:
     # Prints all available keys and theire values.
     def print_config(self):
         print("[gossip]:")
-        print("cache_size = {}".format(self.cache_size))
-        print("max_connections = {}".format(self.max_connections))
-        print("bootstrapper = {}".format(self.bootstrapper))
-        print("p2p_address = {}".format(self.p2p_address))
-        print("api_address = {}".format(self.api_address))
-        print("known_peers = {}".format(self.known_peers))
+        for key in vars(self):
+            print("{} = {}".format(key, vars(self)[key]))
 
     # Checks is all required sections and keys exists in the given ConfigParser
     # If a required field does not exist, a KeyError exception is raised
     def __check_required_fields_exist(self, configparser):
-        required = ["cache_size", "max_connections", "bootstrapper",
+        required = ["cache_size", "degree", "max_connections", "bootstrapper",
                     "p2p_address", "api_address"]
 
         if "gossip" not in configparser:
