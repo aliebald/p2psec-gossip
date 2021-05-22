@@ -3,9 +3,9 @@ from modules.config import Config
 
 
 class Gossip:
-    def __init__(self):
-        self.config = config = Config("./config.ini")
-        config.print_config()
+    def __init__(self, config):
+        print("gossip")
+        self.config = config
         print()
         self.peers = []
 
@@ -23,7 +23,3 @@ class Gossip:
         #      PeerConnection (or use async features instead of threads?)
 
         # TODO start APIConnectionHandler
-
-
-if __name__ == "__main__":
-    Gossip()
