@@ -3,20 +3,25 @@ from configparser import ConfigParser
 # config blueprint.
 # If a field is set to required, the key must exist in the config beeing parsed
 # If required: False, a default value must (!) be given
+# If "type" is given, it will try to cast to that type
 config_config = {
     "gossip": {
         "cache_size": {
-            "required": True
+            "required": True,
+            "type": int
         },
         "degree": {
-            "required": True
+            "required": True,
+            "type": int
         },
         "max_connections": {
-            "required": True
+            "required": True,
+            "type": int
         },
         "search_cooldown": {
             "required": False,
-            "default": 120000  # 2 minutes
+            "default": 120000,  # 2 minutes
+            "type": int
         },
         "bootstrapper": {
             "required": True
@@ -48,6 +53,8 @@ class Config:
         if len(self.known_peers) > 0:
             self.known_peers = self.known_peers.replace(" ", "").split(",")
 
+        self.search_cooldown = int(self.search_cooldown)
+
     # Parses the whole config as specified in config_config
     def __parse_config(self, configparser):
         for section in config_config:
@@ -64,6 +71,11 @@ class Config:
             setattr(self, key, configparser[section][key])
         else:
             setattr(self, key, config_config[section][key]["default"])
+
+        # Cast if type is defined in config_config
+        if "type" in config_config[section][key]:
+            _type = config_config[section][key]["type"]
+            setattr(self, key, (_type)(vars(self)[key]))
 
     # Checks if the given section and key exists. Similar to __check_key_exists
     # but returns a boolean and does not throw an error. For non required keys.
