@@ -2,7 +2,7 @@ import time
 from threading import Thread
 
 from modules.peers.peer_connection import Peer_connection, peer_connection_factory
-from modules.config import Config
+from modules.connection_handler import connection_handler
 
 
 class Gossip:
@@ -24,11 +24,25 @@ class Gossip:
         # TODO Start a Thread for each active peer and start: Peers ->
         #      PeerConnection (or use async features instead of threads?)
 
-        # TODO start APIConnectionHandler
+        # start APIConnectionHandler
+        (host, port) = config.p2p_address.split(":")
+        print("Opening Peer server at host: {}, port: {}".format(host, port))
+        Thread(target=connection_handler, args=(
+            host, int(port), self.__on_peer_connection)).start()
+
+    # Gets called when a new peer tries to connect to APIConnectionHandler
+    #
+    # Arguments:
+    #    socket -- socket connected to the peer
+    def __on_peer_connection(self, socket):
+        print("New client connected", socket)
+        # TODO implementation
 
     # Ensures that self.peers has at least self.config.degree many peers
     def __run_peer_control(self):
-        search_cooldown = self.config.search_cooldown / 60000
+        search_cooldown = self.config.search_cooldown / 1000
+        print("search_cooldown = {} ({}), self.config.search_cooldown = {} ({})".format(
+            search_cooldown, type(search_cooldown), self.config.search_cooldown, type(self.config.search_cooldown)))
         time.sleep(search_cooldown)
 
         while True:
