@@ -9,6 +9,7 @@ edge base. Older items will be removed to ensure space for newer items if the pe
 knowledge base exceeds this limit.
 - `degree`: Number of peers the current peer has to exchange information with.
 - `max_connections`: _TODO Documentation_
+- `search_cooldown`: Cooldown for peer discovery in milliseconds.
 - `bootstrapper`: _TODO Documentation_
 - `p2p_address`: _TODO Documentation_
 - `api_address`: _TODO Documentation_

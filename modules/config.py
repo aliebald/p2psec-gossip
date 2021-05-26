@@ -1,10 +1,9 @@
 from configparser import ConfigParser
 
+
 # The config class abstracts the parsing required to read config files
 # and provides easy access to the variables inside the given configfile.
 # If a required field is not found, a KeyError exception is raised.
-
-
 class Config:
     def __init__(self, path):
         configparser = ConfigParser()
@@ -15,6 +14,7 @@ class Config:
         self.cache_size = configparser["gossip"]["cache_size"]
         self.degree = configparser["gossip"]["degree"]
         self.max_connections = configparser["gossip"]["max_connections"]
+        self.search_cooldown = configparser["gossip"]["search_cooldown"]
         self.bootstrapper = configparser["gossip"]["bootstrapper"]
         self.p2p_address = configparser["gossip"]["p2p_address"]
         self.api_address = configparser["gossip"]["api_address"]
@@ -38,7 +38,7 @@ class Config:
     # If a required field does not exist, a KeyError exception is raised
     def __check_required_fields_exist(self, configparser):
         required = ["cache_size", "degree", "max_connections", "bootstrapper",
-                    "p2p_address", "api_address"]
+                    "p2p_address", "api_address", "search_cooldown"]
 
         if "gossip" not in configparser:
             error = ("The section \"gossip\" is missing in the config. Please "
