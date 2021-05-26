@@ -64,6 +64,7 @@ class Config:
     # Parses a single key from the configparser into the attributes of this
     # class. Throws an KeyError if key or section does not exist.
     def __parse_key(self, configparser, section, key):
+        self.__check_section_exists(configparser, section)
         if config_config[section][key]["required"]:
             self.__check_key_exists(configparser, section, key)
             setattr(self, key, configparser[section][key])
@@ -83,13 +84,17 @@ class Config:
         return (key in configparser[section] and
                 len(configparser[section][key]) > 0)
 
-    # Checks if the given section and key exists. Throws an KeyError if not.
-    def __check_key_exists(self, configparser, section, key):
+    # Checks if the given section exists. Throws an KeyError if not.
+    def __check_section_exists(self, configparser, section):
         if section not in configparser:
             error = ("The section \"{}\" is missing in the config. Please "
                      "refer to the README for information").format(section)
             raise KeyError(error)
 
+    # Checks if the given key exists. Throws an KeyError if not.
+    # Assumes that the section exists. Use __check_section_exists to check if
+    # A section exists
+    def __check_key_exists(self, configparser, section, key):
         if key not in configparser[section]:
             error = ("\"{}\" is missing in the {} section of the "
                      "config. Please refer to the README for information."
