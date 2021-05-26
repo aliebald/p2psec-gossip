@@ -53,8 +53,6 @@ class Config:
         if len(self.known_peers) > 0:
             self.known_peers = self.known_peers.replace(" ", "").split(",")
 
-        self.search_cooldown = int(self.search_cooldown)
-
     # Parses the whole config as specified in config_config
     def __parse_config(self, configparser):
         for section in config_config:
