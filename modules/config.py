@@ -44,7 +44,7 @@ class Config:
         configparser.read(path)
         self.__parse_config(configparser)
 
-        # split known peers string into list, if a sring was loaded
+        # split known peers string into list, if a string was loaded
         if len(self.known_peers) > 0:
             self.known_peers = self.known_peers.replace(" ", "").split(",")
 
