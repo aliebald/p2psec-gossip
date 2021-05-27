@@ -1,4 +1,6 @@
 from threading import Thread
+import argparse
+
 from modules.config import Config
 from modules.gossip import Gossip
 
@@ -25,14 +27,43 @@ def start_gossip(path):
     Gossip(config)
 
 
+# Parses command line arguments
+#
+# Returns:
+#    tuple with the following entries
+#    path to config, either from commandline or the default: "./config.ini".
+#
+def parse_arguments():
+    description = (
+        "This is the module responsible for spreading information in the "
+        "network. Peers spread information that a user is online via this "
+        "module. Other modules may base their functionality on this module "
+        "a mockup version of this module is provided as part of the testing "
+        "module"
+    )
+    parser = argparse.ArgumentParser(description=description)
+    parser.add_argument("-p", "--path", type=str,
+                        help="Path to the desired config file")
+    parser.add_argument("-t", "--testmode", action="store_true",
+                        help=("start multiple gossip instances using test "
+                              "configs (testmode)"))
+    args = parser.parse_args()
+
+    path = args.path if args.path else "./config.ini"
+    testmode = args.testmode if args.testmode else False
+
+    return (path, testmode)
+
+
 def main():
+    (path, testmode) = parse_arguments()
     # TODO read path from command line
-    testmode = True
+    # testmode = False
 
     if testmode:
         test_mode()
     else:
-        start_gossip("./config.ini")
+        start_gossip(path)
 
 
 if __name__ == "__main__":
