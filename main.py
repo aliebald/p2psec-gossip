@@ -57,9 +57,6 @@ def parse_arguments():
 
 def main():
     (path, testmode) = parse_arguments()
-    # TODO read path from command line
-    # testmode = False
-
     if testmode:
         test_mode()
     else:
