@@ -1,7 +1,7 @@
 from struct import unpack, error
 
-PEER_DISCOVERY = 500
-PEER_OFFER = 501
+PEER_DISCOVERY = 505
+PEER_OFFER = 506
 
 
 # struct formats for API packets
