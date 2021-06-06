@@ -5,8 +5,8 @@ from modules.config import Config
 from modules.gossip import Gossip
 
 
-# Test Function that starts multiple peers with different configs
 def test_mode():
+    """Test Function that starts multiple peers with different configs"""
     paths = ["./test_configs/config_1.ini",
              "./test_configs/config_2.ini",
              "./test_configs/config_3.ini"]
@@ -19,21 +19,20 @@ def test_mode():
             print("Error: unable to start thread for {}".format(path))
 
 
-# Reads the config from the given path and starts Gossip
 def start_gossip(path):
+    """Reads the config from the given path and starts Gossip"""
     print("Starting gossip. Path: \"{}\"".format(path))
     config = Config(path)
     config.print_config()
     Gossip(config)
 
 
-# Parses command line arguments
-#
-# Returns:
-#    tuple with the following entries
-#    path to config, either from commandline or the default: "./config.ini".
-#
 def parse_arguments():
+    """Parses command line arguments
+    Returns:
+       tuple with the following entries
+       path to config, either from commandline or the default: "./config.ini".
+    """
     description = (
         "This is the module responsible for spreading information in the "
         "network. Peers spread information that a user is online via this "

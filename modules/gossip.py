@@ -30,16 +30,17 @@ class Gossip:
         Thread(target=connection_handler, args=(
             host, int(port), self.__on_peer_connection)).start()
 
-    # Gets called when a new peer tries to connect to APIConnectionHandler
-    #
-    # Arguments:
-    #    socket -- socket connected to the peer
     def __on_peer_connection(self, socket):
+        """Gets called when a new peer tries to connect to APIConnectionHandler
+        Arguments:
+            socket -- socket connected to the peer
+        """
         print("New client connected", socket)
         # TODO implementation
 
-    # Ensures that self.peers has at least self.config.degree many peers
     def __run_peer_control(self):
+        """Ensures that self.peers has at least self.config.degree many peers
+        """
         search_cooldown = self.config.search_cooldown / 1000
         print("search_cooldown = {} ({}), self.config.search_cooldown = {} ({})".format(
             search_cooldown, type(search_cooldown), self.config.search_cooldown, type(self.config.search_cooldown)))
