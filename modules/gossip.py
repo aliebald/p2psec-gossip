@@ -26,7 +26,6 @@ class Gossip:
 
         # start APIConnectionHandler
         (host, port) = config.p2p_address.split(":")
-        print("Opening Peer server at host: {}, port: {}".format(host, port))
         Thread(target=connection_handler, args=(
             host, int(port), self.__on_peer_connection)).start()
 
@@ -78,5 +77,6 @@ class Gossip:
                 print("Looking for new Peers")
                 # Send PeerDiscovery
                 for peer in self.peers:
+                    print("  sending peer discovery to", peer.get_address())
                     peer.send_peer_discovery()
             time.sleep(search_cooldown)

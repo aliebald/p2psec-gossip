@@ -15,8 +15,7 @@ def connection_handler(host, port, on_connection_fnc):
                             Will pass the clientsocket as an argument.
     """
 
-    print("Opening Peer server at host: {} ({}), port: {} ({})".format(
-        host, type(host), port, type(port)))
+    print("Opening Peer server at host: {}, port: {}".format(host, port))
     serversocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     serversocket.bind((host, port))
     serversocket.listen()
