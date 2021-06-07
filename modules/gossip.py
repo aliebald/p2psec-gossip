@@ -40,7 +40,7 @@ class Gossip:
         """
         # TODO implement. The current implementation is rather rudimentary
         new_peer = Peer_connection(socket, self)
-        print("New peer connected", new_peer.get_address(), "\r\n")
+        print("New peer connected", new_peer.get_peer_address(), "\r\n")
         self.peers.append(new_peer)
         Thread(target=new_peer.run()).start()
 
@@ -71,7 +71,7 @@ class Gossip:
         """
         addresses = []
         for peer in self.peers:
-            addresses.append(peer.get_address())
+            addresses.append(peer.get_peer_address())
         return addresses
 
     def __run_peer_control(self):
@@ -85,7 +85,8 @@ class Gossip:
                 print("\r\nLooking for new Peers")
                 # Send PeerDiscovery
                 for peer in self.peers:
-                    print("  sending peer discovery to", peer.get_address())
+                    print("  sending peer discovery to",
+                          peer.get_peer_address())
                     peer.send_peer_discovery()
             print("\r\nConnected peers: {}\r\n".format(
                 self.get_peer_addresses()))

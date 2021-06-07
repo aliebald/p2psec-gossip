@@ -36,9 +36,15 @@ class Peer_connection:
             buf = self.connection.recv(4096)  # TODO buffersize?
             self.__handle_incoming_message(buf)
 
-    def get_address(self):
+    def get_peer_address(self):
         """Returns the address of this peer in the format host:port"""
         (host, port) = self.connection.getpeername()
+        address = "{}:{}".format(host, port)
+        return address
+
+    def get_own_address(self):
+        """Returns the address of this peer in the format host:port"""
+        (host, port) = self.connection.getsockname()
         address = "{}:{}".format(host, port)
         return address
 
@@ -55,7 +61,7 @@ class Peer_connection:
         """
         nonce = 0  # TODO find nonce
         # Use target_address to filter the address of the target peer
-        target_address = self.get_address()
+        target_address = self.get_peer_address()
         addresses = list(filter(lambda ip: ip != target_address,
                          self.gossip.get_peer_addresses()))
         # Abort if we do not know any other peers
@@ -96,15 +102,16 @@ class Peer_connection:
             buf -- received message in byte format
         """
         type = get_header_type(buf)
+        print(self.get_own_address(), "received:")
         if type == PEER_DISCOVERY:
-            print("\r\nReceived PEER_DISCOVERY from", self.get_address())
+            print("\r\nReceived PEER_DISCOVERY from", self.get_peer_address())
             self.__handle_peer_discovery(buf)
         elif type == PEER_OFFER:
-            print("\r\nReceived PEER_OFFER from", self.get_address())
+            print("\r\nReceived PEER_OFFER from", self.get_peer_address())
             self.__handle_peer_offer(buf)
         else:
             print("\r\nReceived message with unknown type {} from {}".format(
-                type, self.get_address()))
+                type, self.get_peer_address()))
 
     def __handle_peer_discovery(self, buf):
         """Handles a peer discovery message and calls __send_peer_offer() to
