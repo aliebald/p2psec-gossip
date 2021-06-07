@@ -1,4 +1,12 @@
 import socket
+from random import getrandbits
+
+from modules.peers.peer_package_parser import (
+    PEER_DISCOVERY,
+    PEER_OFFER,
+    get_header_type,
+    pack_peer_discovery
+)
 
 
 class Peer_connection:
@@ -11,7 +19,42 @@ class Peer_connection:
         """
         self.connection = connection
 
-    # TODO implement required functionality
+    def run(self):
+        """Waits for incoming messages and handles them."""
+        while True:
+            msg = self.connection.recv(4096)  # TODO buffersize?
+            self.__handle_incoming_msg(msg)
+
+    def send_peer_discovery(self):
+        """Sends a peer discovery message."""
+        # TODO Save challenge to check it in response
+        challenge = getrandbits(64)
+        message = pack_peer_discovery(challenge)
+        self.connection.send(message)
+
+    def __handle_incoming_msg(self, msg):
+        """Handles an incoming message from a peer
+
+        Arguments:
+            msg -- received message
+        """
+        type = get_header_type(msg)
+        if type == PEER_DISCOVERY:
+            print("Received PEER_DISCOVERY")
+            self.__handle_peer_discovery(msg)
+        elif type == PEER_OFFER:
+            print("Received PEER_OFFER")
+            self.__handle_peer_offer(msg)
+        else:
+            print("Received message with unknown type", type)
+
+    def __handle_peer_discovery(self, msg):
+        # TODO implement
+        pass
+
+    def __handle_peer_offer(self, msg):
+        # TODO implement
+        pass
 
 
 def peer_connection_factory(addresses):
