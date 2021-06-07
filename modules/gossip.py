@@ -1,7 +1,8 @@
 import time
 from threading import Thread
 
-from modules.peers.peer_connection import peer_connection_factory
+from modules.peers.peer_connection import (
+    Peer_connection, peer_connection_factory)
 from modules.connection_handler import connection_handler
 
 
@@ -26,19 +27,22 @@ class Gossip:
         for peer in self.peers:
             Thread(target=peer.run()).start()
 
-        # start APIConnectionHandler
+        # start PeerConnectionHandler
         (host, port) = config.p2p_address.split(":")
         Thread(target=connection_handler, args=(
             host, int(port), self.__on_peer_connection)).start()
 
     def __on_peer_connection(self, socket):
-        """Gets called when a new peer tries to connect to APIConnectionHandler
+        """Gets called when a new peer tries to connect.
 
         Arguments:
             socket -- socket connected to the peer
         """
-        print("New client connected", socket)
-        # TODO implementation
+        # TODO implement. The current implementation is rather rudimentary
+        new_peer = Peer_connection(socket, self)
+        print("New peer connected", new_peer.get_address(), "\r\n")
+        self.peers.append(new_peer)
+        Thread(target=new_peer.run()).start()
 
     def offer_peers(self, peer_addresses):
         """Offers peer_addresses to this gossip class. Gets called after a peer
