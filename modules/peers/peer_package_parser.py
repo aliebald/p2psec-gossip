@@ -1,11 +1,11 @@
-from struct import unpack, error
+from struct import unpack, pack, error
+
 
 PEER_DISCOVERY = 505
 PEER_OFFER = 506
 
-
-# struct formats for API packets
-# !! no data is included as size is variable
+# struct formats for peer packets
+# data is not included in the formats, since its size is variable
 FORMAT_PEER_DISCOVERY = "!HHQ"
 FORMAT_PEER_OFFER = "!HHQQ"
 
@@ -108,9 +108,30 @@ def parse_peer_offer(buf):
         return None
 
 
-def build_peer_discovery():
-    pass
+def pack_peer_discovery(challenge):
+    """Packs a peer discovery message as byte-object.
+
+    Arguments:
+        challenge -- challenge for peer offer response.
+
+    Returns:
+        packet as byte-object
+    """
+    buf = pack(FORMAT_PEER_DISCOVERY, 12, PEER_DISCOVERY, challenge)
+    return buf
 
 
-def build_peer_offer():
-    pass
+def pack_peer_offer(challenge, nonce, data):
+    """Packs a peer offer message as byte-object.
+
+    Arguments:
+        challenge -- challenge received in original peer discovery.
+        nonce -- challenge received in original peer discovery.
+
+    Returns:
+        packet as byte-object
+    """
+    data_bytes = (",".join(data)).encode("utf-8")
+    size = 20 + len(data_bytes)
+    buf = pack(FORMAT_PEER_DISCOVERY, size, PEER_OFFER, challenge, nonce)
+    return buf + data_bytes
