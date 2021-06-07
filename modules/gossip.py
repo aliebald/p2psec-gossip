@@ -25,7 +25,7 @@ class Gossip:
         # Start a Thread for each active peer and start: Peers ->
         # PeerConnection (or use async features instead of threads?)
         for peer in self.peers:
-            Thread(target=peer.run()).start()
+            Thread(target=peer.run).start()
 
         # start PeerConnectionHandler
         (host, port) = config.p2p_address.split(":")
