@@ -54,7 +54,10 @@ class Peer_connection:
             challenge -- challenge received from original peer discovery
         """
         nonce = 0  # TODO find nonce
-        addresses = self.gossip.get_peer_addresses()
+        # Use target_address to filter the address of the target peer
+        target_address = self.get_address()
+        addresses = list(filter(lambda ip: ip != target_address,
+                         self.gossip.get_peer_addresses()))
         message = pack_peer_offer(challenge, nonce, addresses)
         self.connection.send(message)
 
