@@ -133,5 +133,5 @@ def pack_peer_offer(challenge, nonce, data):
     """
     data_bytes = (",".join(data)).encode("utf-8")
     size = 20 + len(data_bytes)
-    buf = pack(FORMAT_PEER_DISCOVERY, size, PEER_OFFER, challenge, nonce)
+    buf = pack(FORMAT_PEER_OFFER, size, PEER_OFFER, challenge, nonce)
     return buf + data_bytes
