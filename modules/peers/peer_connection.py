@@ -20,11 +20,13 @@ CHALLENGE_TIMEOUT = 300
 class Peer_connection:
     """Peer_connection represents a connection to a single peer. """
 
-    def __init__(self, connection):
+    def __init__(self, connection, gossip):
         """
         Arguments:
             connection -- open socket connected to a peer
+            gossip -- gossip responsible for this peer
         """
+        self.gossip = gossip
         self.connection = connection
         self.last_challenges = []
 
@@ -33,6 +35,10 @@ class Peer_connection:
         while True:
             buf = self.connection.recv(4096)  # TODO buffersize?
             self.__handle_incoming_message(buf)
+
+    def get_address(self):
+        """Returns the address of this peer in the format host:port"""
+        return ":".join(self.connection.getpeername())
 
     def send_peer_discovery(self):
         """Sends a peer discovery message."""
@@ -116,10 +122,11 @@ class Peer_connection:
 
         # TODO check nonce
 
-        # TODO save data / pass it to gossip
+        # save data / pass it to gossip
+        self.gossip.offer_peers(data)
 
 
-def peer_connection_factory(addresses):
+def peer_connection_factory(addresses, gossip):
     """Connects to multiple addresses of peers.
 
     Arguments:
@@ -137,7 +144,7 @@ def peer_connection_factory(addresses):
 
     connections = list(filter(None, connections))
     for connection in connections:
-        peers.append(Peer_connection(connection))
+        peers.append(Peer_connection(connection, gossip))
 
     return peers
 

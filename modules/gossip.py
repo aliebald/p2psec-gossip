@@ -14,7 +14,7 @@ class Gossip:
 
         # connect to peers in config
         if len(config.known_peers) > 0:
-            self.peers = peer_connection_factory(config.known_peers)
+            self.peers = peer_connection_factory(config.known_peers, self)
 
         # TODO Ask bootstrapping service for peers if no peers where in the
         #      config or all peers from config where unreachable.
@@ -38,6 +38,34 @@ class Gossip:
         print("New client connected", socket)
         # TODO implementation
 
+    def offer_peers(self, peer_addresses):
+        """Offers peer_addresses to this gossip class. Gets called after a peer
+        offer was received.
+
+        Arguments:
+            peer_addresses -- List of strings with format: <host_ip>:<port>
+        """
+        # remove already connected peers
+        connected = self.get_peer_addresses()
+        candidates = list(filter(lambda x: x not in connected, peer_addresses))
+
+        # Open a connection to new Peers
+        if len(candidates) > 0:
+            new_peers = peer_connection_factory(self.config.known_peers, self)
+            self.peers += new_peers
+            # TODO start new peers
+
+    def get_peer_addresses(self):
+        """Returns the addresses of all known peers in a list
+
+        Returns:
+            List of strings with format: <host_ip>:<port>
+        """
+        addresses = []
+        for peer in self.peers:
+            addresses.append(peer.get_address())
+        return addresses
+
     def __run_peer_control(self):
         """Ensures that self.peers has at least self.config.degree many peers
         """
@@ -49,8 +77,7 @@ class Gossip:
         while True:
             if len(self.peers) < self.config.degree:
                 print("Looking for new Peers")
-                # TODO Send PeerDiscovery
-
-                # TODO Open a connection to new Peers
-
+                # Send PeerDiscovery
+                for peer in self.peers:
+                    peer.send_peer_discovery()
             time.sleep(search_cooldown)
