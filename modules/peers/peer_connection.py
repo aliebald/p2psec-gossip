@@ -38,7 +38,9 @@ class Peer_connection:
 
     def get_address(self):
         """Returns the address of this peer in the format host:port"""
-        return ":".join(self.connection.getpeername())
+        (host, port) = self.connection.getpeername()
+        address = "{}:{}".format(host, port)
+        return address
 
     def send_peer_discovery(self):
         """Sends a peer discovery message."""
@@ -76,7 +78,7 @@ class Peer_connection:
         for (saved_challenge, timeout) in self.last_challenges:
             if saved_challenge == challenge:
                 self.last_challenges.remove((saved_challenge, timeout))
-                return timeout <= time.time()
+                return timeout >= time.time()
         return False
 
     def __handle_incoming_message(self, buf):
