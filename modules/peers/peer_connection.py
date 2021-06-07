@@ -58,6 +58,11 @@ class Peer_connection:
         target_address = self.get_address()
         addresses = list(filter(lambda ip: ip != target_address,
                          self.gossip.get_peer_addresses()))
+        # Abort if we do not know any other peers
+        if len(addresses) == 0:
+            print("No other peers connected, do not send peer offer.")
+            return
+        print("responding with peers: {}\r\n".format(addresses))
         message = pack_peer_offer(challenge, nonce, addresses)
         self.connection.send(message)
 
@@ -92,13 +97,14 @@ class Peer_connection:
         """
         type = get_header_type(buf)
         if type == PEER_DISCOVERY:
-            print("Received PEER_DISCOVERY")
+            print("\r\nReceived PEER_DISCOVERY from", self.get_address())
             self.__handle_peer_discovery(buf)
         elif type == PEER_OFFER:
-            print("Received PEER_OFFER")
+            print("\r\nReceived PEER_OFFER from", self.get_address())
             self.__handle_peer_offer(buf)
         else:
-            print("Received message with unknown type", type)
+            print("\r\nReceived message with unknown type {} from {}".format(
+                type, self.get_address()))
 
     def __handle_peer_discovery(self, buf):
         """Handles a peer discovery message and calls __send_peer_offer() to
@@ -126,6 +132,12 @@ class Peer_connection:
             return
 
         # TODO check nonce
+
+        # check if the offer contains our own address
+        p2p_address = self.gossip.config.p2p_address
+        if p2p_address in data:
+            print("WARNING: own p2p address found in peer offer!")
+            data = list(filter(lambda ip: ip != p2p_address, data))
 
         # save data / pass it to gossip
         self.gossip.offer_peers(data)
