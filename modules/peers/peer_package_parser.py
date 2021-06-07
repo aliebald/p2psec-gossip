@@ -125,8 +125,8 @@ def pack_peer_offer(challenge, nonce, data):
     """Packs a peer offer message as byte-object.
 
     Arguments:
-        challenge -- challenge received in original peer discovery.
-        nonce -- challenge received in original peer discovery.
+        challenge -- challenge received from original peer discovery.
+        nonce -- nonce according to documentation
 
     Returns:
         packet as byte-object
