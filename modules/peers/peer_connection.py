@@ -52,8 +52,8 @@ class Peer_connection:
             challenge -- challenge received from original peer discovery
         """
         nonce = 0  # TODO find nonce
-        ips = []  # TODO self.gossip.get_peer_ips()
-        message = pack_peer_offer(challenge, nonce, ips)
+        addresses = self.gossip.get_peer_addresses()
+        message = pack_peer_offer(challenge, nonce, addresses)
         self.connection.send(message)
 
     def __generate_challenge(self):
