@@ -21,8 +21,10 @@ class Gossip:
 
         Thread(target=self.__run_peer_control).start()
 
-        # TODO Start a Thread for each active peer and start: Peers ->
-        #      PeerConnection (or use async features instead of threads?)
+        # Start a Thread for each active peer and start: Peers ->
+        # PeerConnection (or use async features instead of threads?)
+        for peer in self.peers:
+            Thread(target=peer.run()).start()
 
         # start APIConnectionHandler
         (host, port) = config.p2p_address.split(":")
@@ -53,7 +55,9 @@ class Gossip:
         if len(candidates) > 0:
             new_peers = peer_connection_factory(self.config.known_peers, self)
             self.peers += new_peers
-            # TODO start new peers
+            # start new peers
+            for peer in self.peers:
+                Thread(target=peer.run()).start()
 
     def get_peer_addresses(self):
         """Returns the addresses of all known peers in a list
