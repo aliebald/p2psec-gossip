@@ -1,7 +1,7 @@
 import time
 from threading import Thread
 
-from modules.peers.peer_connection import Peer_connection, peer_connection_factory
+from modules.peers.peer_connection import peer_connection_factory
 from modules.connection_handler import connection_handler
 
 
@@ -32,6 +32,7 @@ class Gossip:
 
     def __on_peer_connection(self, socket):
         """Gets called when a new peer tries to connect to APIConnectionHandler
+
         Arguments:
             socket -- socket connected to the peer
         """
@@ -70,8 +71,6 @@ class Gossip:
         """Ensures that self.peers has at least self.config.degree many peers
         """
         search_cooldown = self.config.search_cooldown / 1000
-        print("search_cooldown = {} ({}), self.config.search_cooldown = {} ({})".format(
-            search_cooldown, type(search_cooldown), self.config.search_cooldown, type(self.config.search_cooldown)))
         time.sleep(search_cooldown)
 
         while True:
