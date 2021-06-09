@@ -85,8 +85,8 @@ class Gossip:
                 candidates, self, int(p2p_listening_port))
             self.peers += new_peers
             # start new peers
-            for peer in self.peers:
-                Thread(target=peer.run()).start()
+            for peer in new_peers:
+                Thread(target=peer.run).start()
 
     def get_peer_addresses(self):
         """Returns the p2p listening addresses of all known peers in a list
@@ -98,6 +98,18 @@ class Gossip:
         for peer in self.peers:
             addresses.append(peer.get_peer_p2p_listening_address())
         return list(filter(lambda x: x != None, addresses))
+
+    def close_peer(self, peer):
+        """Removes a Peer_connection from the Peer_connection list and calls
+        close on the Peer_connection.
+
+        Arguments:
+            peer: Peer_connection instance that should be closed
+        """
+        self.peers = list(filter(lambda p: p != peer, self.peers))
+        peer.close()
+
+        print("Connected peers: {}\r\n".format(self.get_peer_addresses()))
 
     def __run_peer_control(self):
         """Ensures that self.peers has at least self.config.degree many peers

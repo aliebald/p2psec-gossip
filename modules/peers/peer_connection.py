@@ -33,7 +33,7 @@ class Peer_connection:
     - peer_p2p_listening_port: p2p_listening_port of connected peer
     - last_challenges: (private) list of send challenges combined with a
                        timeout. Format: [(challenge, timeout)]
-                       When the current time is greater than timeout, the 
+                       When the current time is greater than timeout, the
                        challenge is no longer valid
     """
 
@@ -54,8 +54,17 @@ class Peer_connection:
     def run(self):
         """Waits for incoming messages and handles them."""
         while True:
-            buf = self.connection.recv(4096)  # TODO buffersize?
+            try:
+                buf = self.connection.recv(4096)  # TODO buffersize?
+            except socket.error:
+                self.gossip.close_peer(self)
+                return
+
             self.__handle_incoming_message(buf)
+
+    def close(self):
+        print("Connection to {} closed".format(self.get_debug_address()))
+        self.connection.close()
 
     def get_peer_p2p_listening_address(self):
         """Returns the address the connected peer accepts new peer connections
