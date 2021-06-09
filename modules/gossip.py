@@ -83,8 +83,7 @@ class Gossip:
     def __run_peer_control(self):
         """Ensures that self.peers has at least self.config.degree many peers
         """
-        search_cooldown = self.config.search_cooldown / 1000
-        time.sleep(search_cooldown)
+        time.sleep(self.config.search_cooldown)
 
         while True:
             if len(self.peers) < self.config.degree:
@@ -95,4 +94,4 @@ class Gossip:
                     print("  sending peer discovery to",
                           peer.get_debug_address())
                     peer.send_peer_discovery()
-            time.sleep(search_cooldown)
+            time.sleep(self.config.search_cooldown)
