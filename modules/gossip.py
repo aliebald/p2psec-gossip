@@ -42,7 +42,7 @@ class Gossip:
         new_peer = Peer_connection(socket, self)
         print("New peer connected", new_peer.get_peer_address(), "\r\n")
         self.peers.append(new_peer)
-        Thread(target=new_peer.run()).start()
+        Thread(target=new_peer.run).start()
 
     def offer_peers(self, peer_addresses):
         """Offers peer_addresses to this gossip class. Gets called after a peer
