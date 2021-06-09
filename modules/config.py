@@ -1,3 +1,7 @@
+"""
+This module provides the Config class.
+"""
+
 from configparser import ConfigParser
 
 # config blueprint.
@@ -44,6 +48,16 @@ class Config:
     """The config class abstracts the parsing required to read config files
     and provides easy access to the variables inside the given configfile.
     If a required field is not found, a KeyError exception is raised.
+
+    Class variables:
+    - cache_size: see readme
+    - degree: see readme
+    - max_connections: see readme
+    - search_cooldown: see readme
+    - bootstrapper: see readme
+    - p2p_address: see readme
+    - api_address: see readme
+    - known_peers: see readme
     """
 
     def __init__(self, path):
