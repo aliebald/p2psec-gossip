@@ -90,11 +90,10 @@ class Gossip:
         while True:
             if len(self.peers) < self.config.degree:
                 print("\r\nLooking for new Peers")
+                print("Connected peers: {}".format(self.get_peer_addresses()))
                 # Send PeerDiscovery
                 for peer in self.peers:
                     print("  sending peer discovery to",
                           peer.get_peer_address())
                     peer.send_peer_discovery()
-            print("\r\nConnected peers: {}\r\n".format(
-                self.get_peer_addresses()))
             time.sleep(search_cooldown)
