@@ -8,9 +8,8 @@ from modules.connection_handler import connection_handler
 
 class Gossip:
     def __init__(self, config):
-        print("gossip")
+        print("gossip\r\n")
         self.config = config
-        print()
         self.peers = []
 
         # connect to peers in config
@@ -42,7 +41,7 @@ class Gossip:
         """
         # TODO implement. The current implementation is rather rudimentary
         new_peer = Peer_connection(socket, self)
-        print("New peer connected", new_peer.get_peer_address())
+        print("New peer connected", new_peer.get_debug_address())
         self.peers.append(new_peer)
         Thread(target=new_peer.run).start()
 
@@ -94,6 +93,6 @@ class Gossip:
                 # Send PeerDiscovery
                 for peer in self.peers:
                     print("  sending peer discovery to",
-                          peer.get_peer_address())
+                          peer.get_debug_address())
                     peer.send_peer_discovery()
             time.sleep(search_cooldown)

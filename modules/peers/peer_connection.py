@@ -82,6 +82,20 @@ class Peer_connection:
         address = "{}:{}".format(host, port)
         return address
 
+    def get_debug_address(self):
+        """Returns the name/address for debug output.
+        Only use for debug output!
+
+        Returns:
+            If we know the p2p_listening_port, we will return the p2p listening
+            address of the connected peer, otherwise ist address (with the
+            random port instead of the p2p port and an added *)
+        """
+        addr = self.get_peer_p2p_listening_address()
+        if addr == None:
+            addr = self.get_peer_address() + "*"
+        return addr
+
     def send_peer_discovery(self):
         """Sends a peer discovery message."""
         message = pack_peer_discovery(self.__generate_challenge())
@@ -139,17 +153,17 @@ class Peer_connection:
         """
         type = get_header_type(buf)
         if type == PEER_DISCOVERY:
-            print("\r\nReceived PEER_DISCOVERY from", self.get_peer_address())
+            print("\r\nReceived PEER_DISCOVERY from", self.get_debug_address())
             self.__handle_peer_discovery(buf)
         elif type == PEER_OFFER:
-            print("\r\nReceived PEER_OFFER from", self.get_peer_address())
+            print("\r\nReceived PEER_OFFER from", self.get_debug_address())
             self.__handle_peer_offer(buf)
         elif type == PEER_INFO:
-            print("\r\nReceived PEER_INFO from", self.get_peer_address())
+            print("Received PEER_INFO from", self.get_debug_address())
             self.__handle_peer_info(buf)
         else:
             print("\r\nReceived message with unknown type {} from {}".format(
-                type, self.get_peer_address()))
+                type, self.get_debug_address()))
 
     def __handle_peer_discovery(self, buf):
         """Handles a peer discovery message and calls __send_peer_offer() to
@@ -253,8 +267,7 @@ def __connect_peer(ip, port, p2p_listening_port):
     try:
         connection.connect((ip, int(port)))
     except ConnectionRefusedError:
-        print("Failed to connect to ip: {}, port: {}".format(ip, port))
-        print()
+        print("Failed to connect to ip: {}, port: {}\r\n".format(ip, port))
         return
 
     __send_peer_info(connection, p2p_listening_port)
