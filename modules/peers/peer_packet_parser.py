@@ -3,11 +3,13 @@ from struct import unpack, pack, error
 
 PEER_DISCOVERY = 505
 PEER_OFFER = 506
+PEER_INFO = 507
 
 # struct formats for peer packets
 # data is not included in the formats, since its size is variable
 FORMAT_PEER_DISCOVERY = "!HHQ"
 FORMAT_PEER_OFFER = "!HHQQ"
+FORMAT_PEER_INFO = "!HHHH"
 
 
 ##############################################################################
@@ -101,8 +103,33 @@ def parse_peer_offer(buf):
 
     try:
         packet_no_data = unpack(FORMAT_PEER_OFFER, buf[:20])
-        data = (str(buf[20:]).split(","),)
+        data = (buf[20:].decode("utf-8").split(","),)
         return packet_no_data + data
+    except error:
+        print("Struct parsing error in parse_peer_offer!")
+        return None
+
+
+def parse_peer_info(buf):
+    """Parses a peer info message to a human-readable tuple
+    [!] Does (currently) not check for any correctness in the body fields!
+
+    Arguments:
+        buf -- packet as byte-object
+
+    Returns:
+        None if an error occurred, otherwise:
+        tuple (size, type, p2p_listening_port)
+        as    (int,  int,  int,)
+    """
+    # check header: size
+    if not __check_size(buf):
+        print("Incorrect packet size in parse_peer_info!")
+        return None
+
+    try:
+        (size, type, reserved, port) = unpack(FORMAT_PEER_INFO, buf)
+        return (size, type, port)
     except error:
         print("Struct parsing error in parse_peer_offer!")
         return None
@@ -135,3 +162,16 @@ def pack_peer_offer(challenge, nonce, data):
     size = 20 + len(data_bytes)
     buf = pack(FORMAT_PEER_OFFER, size, PEER_OFFER, challenge, nonce)
     return buf + data_bytes
+
+
+def pack_peer_info(p2p_listening_port):
+    """Packs a peer info message as byte-object.
+
+    Arguments:
+        p2p_listening_port -- Port this peer accepts new peer connections at
+
+    Returns:
+        peer info packet as byte-object
+    """
+    buf = pack(FORMAT_PEER_INFO, 8, PEER_INFO, 0, p2p_listening_port)
+    return buf

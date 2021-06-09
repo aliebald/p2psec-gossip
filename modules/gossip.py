@@ -14,8 +14,10 @@ class Gossip:
         self.peers = []
 
         # connect to peers in config
+        (_, p2p_listening_port) = self.config.p2p_address.split(":")
         if len(config.known_peers) > 0:
-            self.peers = peer_connection_factory(config.known_peers, self)
+            self.peers = peer_connection_factory(
+                config.known_peers, self, int(p2p_listening_port))
 
         # TODO Ask bootstrapping service for peers if no peers where in the
         #      config or all peers from config where unreachable.
@@ -40,7 +42,7 @@ class Gossip:
         """
         # TODO implement. The current implementation is rather rudimentary
         new_peer = Peer_connection(socket, self)
-        print("New peer connected", new_peer.get_peer_address(), "\r\n")
+        print("New peer connected", new_peer.get_peer_address())
         self.peers.append(new_peer)
         Thread(target=new_peer.run).start()
 
@@ -55,24 +57,29 @@ class Gossip:
         connected = self.get_peer_addresses()
         candidates = list(filter(lambda x: x not in connected, peer_addresses))
 
+        print("Offer contained:", peer_addresses)
+        print("Connect to:", candidates)
+
         # Open a connection to new Peers
         if len(candidates) > 0:
-            new_peers = peer_connection_factory(self.config.known_peers, self)
+            (_, p2p_listening_port) = self.config.p2p_address.split(":")
+            new_peers = peer_connection_factory(
+                candidates, self, int(p2p_listening_port))
             self.peers += new_peers
             # start new peers
             for peer in self.peers:
                 Thread(target=peer.run()).start()
 
     def get_peer_addresses(self):
-        """Returns the addresses of all known peers in a list
+        """Returns the p2p listening addresses of all known peers in a list
 
         Returns:
             List of strings with format: <host_ip>:<port>
         """
         addresses = []
         for peer in self.peers:
-            addresses.append(peer.get_peer_address())
-        return addresses
+            addresses.append(peer.get_peer_p2p_listening_address())
+        return list(filter(lambda x: x != None, addresses))
 
     def __run_peer_control(self):
         """Ensures that self.peers has at least self.config.degree many peers
