@@ -2,7 +2,7 @@ import socket
 import time
 from random import getrandbits
 
-from modules.peers.peer_package_parser import (
+from modules.peers.peer_packet_parser import (
     PEER_DISCOVERY,
     PEER_OFFER,
     get_header_type,
