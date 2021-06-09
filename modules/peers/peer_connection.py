@@ -1,3 +1,8 @@
+"""
+This Module provides the Peer_connection class as well as a factory method for
+it (peer_connection_factory())
+"""
+
 import socket
 import time
 from random import getrandbits
@@ -21,20 +26,30 @@ CHALLENGE_TIMEOUT = 300
 
 
 class Peer_connection:
-    """Peer_connection represents a connection to a single peer. """
+    """A Peer_connection represents a connection to a single peer.
+    Class variables:
+    - gossip: gossip responsible for this peer
+    - connection: socket connected to the peer
+    - peer_p2p_listening_port: p2p_listening_port of connected peer
+    - last_challenges: (private) list of send challenges combined with a
+                       timeout. Format: [(challenge, timeout)]
+                       When the current time is greater than timeout, the 
+                       challenge is no longer valid
+    """
 
     def __init__(self, connection, gossip, peer_p2p_listening_port=None):
         """
         Arguments:
             connection -- open socket connected to a peer
             gossip -- gossip responsible for this peer
-            peer_p2p_listening_port -- Optional: Port the connected peer
-                                       accepts new peer connections at
+            peer_p2p_listening_port -- (Optional, default: None) Port the
+                                       connected peer accepts new peer
+                                       connections at
         """
         self.gossip = gossip
         self.connection = connection
         self.peer_p2p_listening_port = peer_p2p_listening_port
-        self.last_challenges = []
+        self.__last_challenges = []
 
     def run(self):
         """Waits for incoming messages and handles them."""
@@ -53,6 +68,7 @@ class Peer_connection:
         See also:
         - get_own_address()
         - get_peer_address()
+        - get_debug_address() - for debug output
         """
         if self.peer_p2p_listening_port == None:
             return None
@@ -66,6 +82,7 @@ class Peer_connection:
         See also:
         - get_own_address()
         - get_peer_p2p_listening_address()
+        - get_debug_address() - for debug output
         """
         (host, port) = self.connection.getpeername()
         address = "{}:{}".format(host, port)
@@ -77,6 +94,7 @@ class Peer_connection:
         See also:
         - get_peer_address()
         - get_peer_p2p_listening_address()
+        - get_debug_address() - for debug output
         """
         (host, port) = self.connection.getsockname()
         address = "{}:{}".format(host, port)
@@ -126,7 +144,7 @@ class Peer_connection:
         """Generates and saves a single use challenge"""
         challenge = getrandbits(64)
         timeout = time.time() + CHALLENGE_TIMEOUT
-        self.last_challenges.append((challenge, timeout))
+        self.__last_challenges.append((challenge, timeout))
         return challenge
 
     def __check_challenge(self, challenge):
@@ -139,14 +157,15 @@ class Peer_connection:
         Returns:
             True if the challenge is valid and has not expired.
         """
-        for (saved_challenge, timeout) in self.last_challenges:
+        for (saved_challenge, timeout) in self.__last_challenges:
             if saved_challenge == challenge:
-                self.last_challenges.remove((saved_challenge, timeout))
+                self.__last_challenges.remove((saved_challenge, timeout))
                 return timeout >= time.time()
         return False
 
     def __handle_incoming_message(self, buf):
-        """Handles an incoming message in byte format from a peer
+        """Checks the type of an incoming message in byte format and calls the
+        correct handler according the the type. 
 
         Arguments:
             buf -- received message in byte format
@@ -181,6 +200,13 @@ class Peer_connection:
         self.__send_peer_offer(challenge)
 
     def __handle_peer_offer(self, buf):
+        """Handles a peer offer message. 
+        Calls offer_peers() of gossip if everything is ok.
+
+        Arguments:
+            buf -- received message in byte format. The type must be 
+                   PEER_DISCOVERY
+        """
         msg = parse_peer_offer(buf)
         if (msg == None):
             return
@@ -235,7 +261,6 @@ def peer_connection_factory(addresses, gossip, p2p_listening_port):
         List containing Peer_connection objects. Empty if no connection can
         be established
     """
-    connections = []
     peers = []
     # TODO potentially use asyncio or multithreading here.
     for address in addresses:

@@ -1,3 +1,8 @@
+"""
+This module provides the gossip class.
+TODO: Description of gossip functionality? 
+"""
+
 import time
 from threading import Thread
 
@@ -7,7 +12,21 @@ from modules.connection_handler import connection_handler
 
 
 class Gossip:
+    """The Gossip class represents a single instance of Gossip. By
+    instanciating it, gossip is started.
+
+    Class variables:
+    - config: config object used for this instance of gossip
+    - peers: List of Peer_connections, each representing a single peer
+    """
+
     def __init__(self, config):
+        """Gossip constructor. Starts this instacne of gossip and all required
+        subtasks.
+
+        Arguments:
+            config -- config class object
+        """
         print("gossip\r\n")
         self.config = config
         self.peers = []
