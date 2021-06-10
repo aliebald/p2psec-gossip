@@ -284,21 +284,22 @@ async def peer_connection_factory(addresses, gossip, p2p_listening_port):
         List containing Peer_connection objects. Empty if no connection can
         be established
     """
-    peers = []
-    # TODO use asyncio here.
-    for address in addresses:
-        (ip, port) = address.split(":")
-        connection = await __connect_peer(ip, port, p2p_listening_port)
-        # Create a Peer_connection if the connection was successfull
-        if connection != None:
-            (reader, writer) = connection
-            peers.append(Peer_connection(reader, writer, gossip, port))
+    async def helper(addr, gossip, p2p_listening_port, peers):
+        peers.append(await __connect_peer(addr, gossip, p2p_listening_port))
 
+    peers = []
+    # concurrently connect to all addresses
+    tasks = [asyncio.create_task(
+        helper(addr, gossip, p2p_listening_port, peers)) for addr in addresses]
+    await asyncio.gather(*tasks)
+
+    # Filter failed connections (None values)
+    peers = list(filter(lambda peer: peer != None, peers))
     return peers
 
 
-async def __connect_peer(ip, port, p2p_listening_port):
-    """Opens a connection to the given ip & port.
+async def __connect_peer(address, gossip, p2p_listening_port):
+    """Opens a connection to the given ip & port and creates a Peer_connection.
 
     Arguments:
        ip -- target ip address
@@ -306,18 +307,19 @@ async def __connect_peer(ip, port, p2p_listening_port):
        p2p_listening_port -- Port this peer accepts new peer connections at
 
     Returns:
-        None if failed to open the connection. Otherwise a 
-        (StreamReader, StreamWriter) pair for the given ip, port
+        None if failed to open the connection. 
+        Otherwise a new Peer_connection instance.
     """
+    (ip, port) = address.split(":")
     print("connecting to ip: {}, port: {}".format(ip, port))
     try:
-        reader, writer = await asyncio.open_connection(ip, port)
+        reader, writer = await asyncio.open_connection(ip, int(port))
     except ConnectionRefusedError:
         print("Failed to connect to ip: {}, port: {}\r\n".format(ip, port))
         return None
 
     await __send_peer_info(writer, p2p_listening_port)
-    return (reader, writer)
+    return Peer_connection(reader, writer, gossip, port)
 
 
 async def __send_peer_info(writer, p2p_listening_port):
