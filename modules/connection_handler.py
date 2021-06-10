@@ -1,9 +1,9 @@
-import socket
+import asyncio
 
 
-def connection_handler(host, port, on_connection_fnc):
-    """Opens a socket others can connect to and calls on_connection_fnc when a
-    new client connects.
+async def connection_handler(host, port, on_connection_fnc):
+    """Opens a socket server others can connect to and calls on_connection_fnc
+    when a new client connects.
     Note that this function keeps waiting for new clients, therefore toes not
     return / exit.
 
@@ -16,10 +16,7 @@ def connection_handler(host, port, on_connection_fnc):
     """
 
     print("Opening Peer server at host: {}, port: {}".format(host, port))
-    serversocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    serversocket.bind((host, port))
-    serversocket.listen()
+    server = await asyncio.start_server(on_connection_fnc, host, port)
 
-    while True:
-        (clientsocket, address) = serversocket.accept()
-        on_connection_fnc(clientsocket)
+    async with server:
+        await server.serve_forever()

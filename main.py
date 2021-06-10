@@ -1,5 +1,6 @@
 from threading import Thread
 import argparse
+import asyncio
 
 from modules.config import Config
 from modules.gossip import Gossip
@@ -14,17 +15,18 @@ def test_mode():
     for path in paths:
         print("Try to start", path)
         try:
-            Thread(target=start_gossip, args=(path, )).start()
+            print("TODO")
+            # Thread(target=start_gossip, args=(path, )).start()
         except:
             print("Error: unable to start thread for {}".format(path))
 
 
-def start_gossip(path):
+async def start_gossip(path):
     """Reads the config from the given path and starts Gossip"""
     print("Starting gossip. Path: \"{}\"".format(path))
     config = Config(path)
     config.print_config()
-    Gossip(config)
+    await Gossip(config).run()
 
 
 def parse_arguments():
@@ -54,13 +56,13 @@ def parse_arguments():
     return (path, testmode)
 
 
-def main():
+async def main():
     (path, testmode) = parse_arguments()
     if testmode:
         test_mode()
     else:
-        start_gossip(path)
+        await start_gossip(path)
 
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())

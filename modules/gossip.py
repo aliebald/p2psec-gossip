@@ -1,10 +1,9 @@
 """
 This module provides the gossip class.
-TODO: Description of gossip functionality? 
+TODO: Description of gossip functionality?
 """
 
-import time
-from threading import Thread
+import asyncio
 
 from modules.peers.peer_connection import (
     Peer_connection, peer_connection_factory)
@@ -21,9 +20,7 @@ class Gossip:
     """
 
     def __init__(self, config):
-        """Gossip constructor. Starts this instacne of gossip and all required
-        subtasks.
-
+        """
         Arguments:
             config -- config class object
         """
@@ -31,40 +28,47 @@ class Gossip:
         self.config = config
         self.peers = []
 
+    async def run(self):
+        """Starts this gossip instance.
+        Tries to connect to all known peers or connect to bootstrapping
+        service, if no peers where in the config. 
+        Starts peer controll (responsible for maintaining degree many peers),
+        peers and waits for new incoming connections.
+        """
         # connect to peers in config
         (_, p2p_listening_port) = self.config.p2p_address.split(":")
-        if len(config.known_peers) > 0:
-            self.peers = peer_connection_factory(
-                config.known_peers, self, int(p2p_listening_port))
+        if len(self.config.known_peers) > 0:
+            self.peers = await peer_connection_factory(
+                self.config.known_peers, self, int(p2p_listening_port))
 
         # TODO Ask bootstrapping service for peers if no peers where in the
         #      config or all peers from config where unreachable.
 
-        Thread(target=self.__run_peer_control).start()
+        asyncio.create_task(self.__run_peer_control())
 
-        # Start a Thread for each active peer and start: Peers ->
-        # PeerConnection (or use async features instead of threads?)
+        # Start active peers
         for peer in self.peers:
-            Thread(target=peer.run).start()
+            asyncio.create_task(peer.run())
 
-        # start PeerConnectionHandler
-        (host, port) = config.p2p_address.split(":")
-        Thread(target=connection_handler, args=(
-            host, int(port), self.__on_peer_connection)).start()
+        # start peer connection handler
+        (host, port) = self.config.p2p_address.split(":")
+        asyncio.create_task(await connection_handler(
+            host, int(port), self.__on_peer_connection))
 
-    def __on_peer_connection(self, socket):
+    def __on_peer_connection(self, reader, writer):
         """Gets called when a new peer tries to connect.
 
         Arguments:
-            socket -- socket connected to the peer
+        - reader (StreamReader) -- asyncio StreamReader connected to a new peer
+        - writer (StreamWriter) -- asyncio StreamWriter connected to a new peer
         """
         # TODO implement. The current implementation is rather rudimentary
-        new_peer = Peer_connection(socket, self)
+        new_peer = Peer_connection(reader, writer, self)
         print("New peer connected", new_peer.get_debug_address())
         self.peers.append(new_peer)
-        Thread(target=new_peer.run).start()
+        asyncio.create_task(new_peer.run())
 
-    def offer_peers(self, peer_addresses):
+    async def offer_peers(self, peer_addresses):
         """Offers peer_addresses to this gossip class. Gets called after a peer
         offer was received.
 
@@ -81,12 +85,12 @@ class Gossip:
         # Open a connection to new Peers
         if len(candidates) > 0:
             (_, p2p_listening_port) = self.config.p2p_address.split(":")
-            new_peers = peer_connection_factory(
+            new_peers = await peer_connection_factory(
                 candidates, self, int(p2p_listening_port))
             self.peers += new_peers
             # start new peers
             for peer in new_peers:
-                Thread(target=peer.run).start()
+                asyncio.create_task(peer.run())
 
     def get_peer_addresses(self):
         """Returns the p2p listening addresses of all known peers in a list
@@ -99,7 +103,7 @@ class Gossip:
             addresses.append(peer.get_peer_p2p_listening_address())
         return list(filter(lambda x: x != None, addresses))
 
-    def close_peer(self, peer):
+    async def close_peer(self, peer):
         """Removes a Peer_connection from the Peer_connection list and calls
         close on the Peer_connection.
 
@@ -107,15 +111,13 @@ class Gossip:
             peer: Peer_connection instance that should be closed
         """
         self.peers = list(filter(lambda p: p != peer, self.peers))
-        peer.close()
+        await peer.close()
 
         print("Connected peers: {}\r\n".format(self.get_peer_addresses()))
 
-    def __run_peer_control(self):
+    async def __run_peer_control(self):
         """Ensures that self.peers has at least self.config.degree many peers
         """
-        time.sleep(self.config.search_cooldown)
-
         while True:
             if len(self.peers) < self.config.degree:
                 print("\r\nLooking for new Peers")
@@ -124,5 +126,6 @@ class Gossip:
                 for peer in self.peers:
                     print("  sending peer discovery to",
                           peer.get_debug_address())
-                    peer.send_peer_discovery()
-            time.sleep(self.config.search_cooldown)
+                    await peer.send_peer_discovery()
+
+            await asyncio.sleep(self.config.search_cooldown)

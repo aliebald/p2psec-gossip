@@ -3,7 +3,7 @@ This Module provides the Peer_connection class as well as a factory method for
 it (peer_connection_factory())
 """
 
-import socket
+import asyncio
 import time
 from random import getrandbits
 
@@ -27,44 +27,55 @@ CHALLENGE_TIMEOUT = 300
 
 class Peer_connection:
     """A Peer_connection represents a connection to a single peer.
+
     Class variables:
-    - gossip: gossip responsible for this peer
-    - connection: socket connected to the peer
-    - peer_p2p_listening_port: p2p_listening_port of connected peer
-    - last_challenges: (private) list of send challenges combined with a
-                       timeout. Format: [(challenge, timeout)]
-                       When the current time is greater than timeout, the
-                       challenge is no longer valid
+    - gossip (Gossip) -- gossip responsible for this peer
+    - reader (StreamReader) -- (private) asyncio StreamReader of connected peer
+    - writer (StreamWriter) -- (private) asyncio StreamWriter of connected peer
+    - peer_p2p_listening_port (int) -- p2p_listening_port of connected peer
+    - last_challenges -- (private) list of send challenges combined with a
+                         timeout. Format: [(challenge, timeout)]
+                         When the current time is greater than timeout, the
+                         challenge is no longer valid
     """
 
-    def __init__(self, connection, gossip, peer_p2p_listening_port=None):
+    def __init__(self, reader, writer, gossip, peer_p2p_listening_port=None):
         """
         Arguments:
-            connection -- open socket connected to a peer
-            gossip -- gossip responsible for this peer
-            peer_p2p_listening_port -- (Optional, default: None) Port the
-                                       connected peer accepts new peer
-                                       connections at
+        - reader (StreamReader) -- asyncio StreamReader of connected peer
+        - writer (StreamWriter) -- asyncio StreamWriter of connected peer
+        - gossip (Gossip) -- gossip responsible for this peer
+        - peer_p2p_listening_port -- (Optional, default: None) Port the
+                                     connected peer accepts new peer
+                                     connections at
         """
         self.gossip = gossip
-        self.connection = connection
+        self.__reader = reader
+        self.__writer = writer
         self.peer_p2p_listening_port = peer_p2p_listening_port
         self.__last_challenges = []
 
-    def run(self):
-        """Waits for incoming messages and handles them."""
+    async def run(self):
+        """Waits for incoming messages and handles them. Runs until the
+        connection is closed"""
         while True:
             try:
-                buf = self.connection.recv(4096)  # TODO buffersize?
-            except socket.error:
-                self.gossip.close_peer(self)
+                buf = await self.__reader.read(4096)  # TODO buffersize?
+            except ConnectionError:
+                await self.gossip.close_peer(self)
                 return
+            await self.__handle_incoming_message(buf)
 
-            self.__handle_incoming_message(buf)
-
-    def close(self):
+    async def close(self):
+        """Closes the connection to the peer.
+        Gossip.close_peer() should be called preferably, since it also removes 
+        the peer from the peer list."""
         print("Connection to {} closed".format(self.get_debug_address()))
-        self.connection.close()
+        try:
+            self.__writer.close()
+            await self.__writer.wait_closed()
+        except:
+            return
 
     def get_peer_p2p_listening_address(self):
         """Returns the address the connected peer accepts new peer connections
@@ -81,7 +92,7 @@ class Peer_connection:
         """
         if self.peer_p2p_listening_port == None:
             return None
-        (host, _) = self.connection.getpeername()
+        (host, _) = self.__writer.get_extra_info('peername')
         address = "{}:{}".format(host, self.peer_p2p_listening_port)
         return address
 
@@ -93,7 +104,8 @@ class Peer_connection:
         - get_peer_p2p_listening_address()
         - get_debug_address() - for debug output
         """
-        (host, port) = self.connection.getpeername()
+        # TODO returns None on error
+        (host, port) = self.__writer.get_extra_info('peername')
         address = "{}:{}".format(host, port)
         return address
 
@@ -105,7 +117,7 @@ class Peer_connection:
         - get_peer_p2p_listening_address()
         - get_debug_address() - for debug output
         """
-        (host, port) = self.connection.getsockname()
+        (host, port) = self.__writer.get_extra_info('sockname')
         address = "{}:{}".format(host, port)
         return address
 
@@ -123,12 +135,13 @@ class Peer_connection:
             addr = self.get_peer_address() + "*"
         return addr
 
-    def send_peer_discovery(self):
+    async def send_peer_discovery(self):
         """Sends a peer discovery message."""
         message = pack_peer_discovery(self.__generate_challenge())
-        self.connection.send(message)
+        self.__writer.write(message)
+        await self.__writer.drain()
 
-    def __send_peer_offer(self, challenge):
+    async def __send_peer_offer(self, challenge):
         """Figures out a nonce and sends a peer offer.
 
         Arguments:
@@ -147,7 +160,8 @@ class Peer_connection:
             return
         print("responding with peers: {}\r\n".format(addresses))
         message = pack_peer_offer(challenge, nonce, addresses)
-        self.connection.send(message)
+        self.__writer.write(message)
+        await self.__writer.drain()
 
     def __generate_challenge(self):
         """Generates and saves a single use challenge"""
@@ -172,7 +186,7 @@ class Peer_connection:
                 return timeout >= time.time()
         return False
 
-    def __handle_incoming_message(self, buf):
+    async def __handle_incoming_message(self, buf):
         """Checks the type of an incoming message in byte format and calls the
         correct handler according the the type. 
 
@@ -182,10 +196,10 @@ class Peer_connection:
         type = get_header_type(buf)
         if type == PEER_DISCOVERY:
             print("\r\nReceived PEER_DISCOVERY from", self.get_debug_address())
-            self.__handle_peer_discovery(buf)
+            await self.__handle_peer_discovery(buf)
         elif type == PEER_OFFER:
             print("\r\nReceived PEER_OFFER from", self.get_debug_address())
-            self.__handle_peer_offer(buf)
+            await self.__handle_peer_offer(buf)
         elif type == PEER_INFO:
             print("Received PEER_INFO from", self.get_debug_address())
             self.__handle_peer_info(buf)
@@ -193,7 +207,7 @@ class Peer_connection:
             print("\r\nReceived message with unknown type {} from {}".format(
                 type, self.get_debug_address()))
 
-    def __handle_peer_discovery(self, buf):
+    async def __handle_peer_discovery(self, buf):
         """Handles a peer discovery message and calls __send_peer_offer() to
         send a response.
 
@@ -206,9 +220,9 @@ class Peer_connection:
             return
 
         (size, type, challenge) = msg
-        self.__send_peer_offer(challenge)
+        await self.__send_peer_offer(challenge)
 
-    def __handle_peer_offer(self, buf):
+    async def __handle_peer_offer(self, buf):
         """Handles a peer offer message. 
         Calls offer_peers() of gossip if everything is ok.
 
@@ -234,7 +248,7 @@ class Peer_connection:
             data = list(filter(lambda ip: ip != p2p_address, data))
 
         # save data / pass it to gossip
-        self.gossip.offer_peers(data)
+        await self.gossip.offer_peers(data)
 
     def __handle_peer_info(self, buf):
         """Handles a peer info message. Saves the received p2p_listening_port.
@@ -259,7 +273,7 @@ class Peer_connection:
         self.peer_p2p_listening_port = port
 
 
-def peer_connection_factory(addresses, gossip, p2p_listening_port):
+async def peer_connection_factory(addresses, gossip, p2p_listening_port):
     """Connects to multiple addresses of peers.
 
     Arguments:
@@ -271,18 +285,19 @@ def peer_connection_factory(addresses, gossip, p2p_listening_port):
         be established
     """
     peers = []
-    # TODO potentially use asyncio or multithreading here.
+    # TODO use asyncio here.
     for address in addresses:
         (ip, port) = address.split(":")
-        connection = __connect_peer(ip, port, p2p_listening_port)
+        connection = await __connect_peer(ip, port, p2p_listening_port)
         # Create a Peer_connection if the connection was successfull
         if connection != None:
-            peers.append(Peer_connection(connection, gossip, port))
+            (reader, writer) = connection
+            peers.append(Peer_connection(reader, writer, gossip, port))
 
     return peers
 
 
-def __connect_peer(ip, port, p2p_listening_port):
+async def __connect_peer(ip, port, p2p_listening_port):
     """Opens a connection to the given ip & port.
 
     Arguments:
@@ -291,33 +306,30 @@ def __connect_peer(ip, port, p2p_listening_port):
        p2p_listening_port -- Port this peer accepts new peer connections at
 
     Returns:
-        None if failed to open the connection. Otherwise the socket with the
-        connection.
+        None if failed to open the connection. Otherwise a 
+        (StreamReader, StreamWriter) pair for the given ip, port
     """
-    # open socket
     print("connecting to ip: {}, port: {}".format(ip, port))
-    connection = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-
     try:
-        connection.connect((ip, int(port)))
+        reader, writer = await asyncio.open_connection(ip, port)
     except ConnectionRefusedError:
         print("Failed to connect to ip: {}, port: {}\r\n".format(ip, port))
-        return
+        return None
 
-    __send_peer_info(connection, p2p_listening_port)
-    print("Successfully connected to ip: {}, port: {}".format(ip, port))
-    return connection
+    await __send_peer_info(writer, p2p_listening_port)
+    return (reader, writer)
 
 
-def __send_peer_info(connection, p2p_listening_port):
+async def __send_peer_info(writer, p2p_listening_port):
     """Sends a PEER INFO message with p2p_listening_port to the given 
-    connection
+    StreamWriter
 
     Arguments:
-       connection -- socket connected to a new peer
-       p2p_listening_port -- Port this peer accepts new peer connections at
+        writer -- StreamWriter connected to a new peer
+        p2p_listening_port -- Port this peer accepts new peer connections at
     """
     info_packet = pack_peer_info(p2p_listening_port)
     print("Sending PEER INFO with p2p port {} to {}".format(
-        p2p_listening_port, connection.getpeername()))
-    connection.send(info_packet)
+        p2p_listening_port, writer.get_extra_info('peername')))
+    writer.write(info_packet)
+    await writer.drain()
