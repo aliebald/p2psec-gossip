@@ -2,7 +2,7 @@
     The goal is to provide one place for packet parsing safety
 """
 
-from struct import unpack, error
+from struct import pack, unpack, error
 
 GOSSIP_ANNOUNCE = 500
 GOSSIP_NOTIFY = 501
@@ -177,3 +177,29 @@ def parse_gossip_validation(buf):
             return ()
     except error:
         return ()
+
+
+def build_gossip_notification(msg_id, datatype, data):
+    """Builds a GOSSIP_NOTIFICATION packet as a byte object from arguments
+
+    Arguments:
+        int   , int     , String
+        msg_id, datatype, data
+
+    Returns:
+        message as byte-object b'...'
+        or none if error"""
+
+    if msg_id > 2**16 or msg_id < 0:
+        return None
+    elif datatype > 2**16 or msg_id < 0:
+        return None
+
+    data_bytes = bytes(data, 'utf-8')
+    size = 8 + len(data_bytes)
+    if size > 2**16:
+        return None
+    buf = pack(FORMAT_GOSSIP_NOTIFICATION, size, GOSSIP_NOTIFICATION,
+               msg_id, datatype)
+    buf += data_bytes
+    return buf
