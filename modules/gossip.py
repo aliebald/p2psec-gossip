@@ -15,14 +15,14 @@ class Gossip:
     instanciating it, gossip is started.
 
     Class variables:
-    - config: config object used for this instance of gossip
-    - peers: List of Peer_connections, each representing a single peer
+    - config (Config) -- config object used for this instance of gossip
+    - peers (Peer_connection List) -- Connected (active) peers
     """
 
     def __init__(self, config):
         """
         Arguments:
-            config -- config class object
+        - config (Config) -- config class object
         """
         print("gossip\r\n")
         self.config = config
@@ -73,7 +73,8 @@ class Gossip:
         offer was received.
 
         Arguments:
-            peer_addresses -- List of strings with format: <host_ip>:<port>
+        - peer_addresses (str List) -- addresses of potential peers, received
+          from peer offer. format: host_ip:port
         """
         # remove already connected peers
         connected = self.get_peer_addresses()
@@ -108,7 +109,8 @@ class Gossip:
         close on the Peer_connection.
 
         Arguments:
-            peer: Peer_connection instance that should be closed
+        - peer (Peer_connection) -- Peer_connection instance that should be
+          closed
         """
         self.peers = list(filter(lambda p: p != peer, self.peers))
         await peer.close()

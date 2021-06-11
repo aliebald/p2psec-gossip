@@ -22,7 +22,7 @@ def __get_header_size(buf):
     [!] no checks as this is module intern
 
     Arguments:
-        buf -- packet as byte-object
+    - buf (byte-object) -- packet
 
     Returns:
         int"""
@@ -33,7 +33,7 @@ def get_header_type(buf):
     """Returns the type in the packet header
 
     Arguments:
-        buf -- packet as byte-object
+    - buf (byte-object) -- packet
 
     Returns:
         500-503 :
@@ -49,7 +49,7 @@ def __check_size(buf):
     """Compares the packet size to the size given in the header.
 
     Arguments:
-        buf -- packet as byte-object
+    - buf (byte-object) -- packet
 
     Returns:
         bool
@@ -64,7 +64,7 @@ def parse_peer_discovery(buf):
     [!] Does (currently) not check for any correctness in the body fields!
 
     Arguments:
-        buf -- packet as byte-object
+    - buf (byte-object) -- packet
 
     Returns:
         None if an error occurred, otherwise:
@@ -89,7 +89,7 @@ def parse_peer_offer(buf):
     [!] Does (currently) not check for any correctness in the body fields!
 
     Arguments:
-        buf -- packet as byte-object
+    - buf (byte-object) -- packet
 
     Returns:
         None if an error occurred, otherwise:
@@ -115,7 +115,7 @@ def parse_peer_info(buf):
     [!] Does (currently) not check for any correctness in the body fields!
 
     Arguments:
-        buf -- packet as byte-object
+    - buf (byte-object) -- packet
 
     Returns:
         None if an error occurred, otherwise:
@@ -139,7 +139,7 @@ def pack_peer_discovery(challenge):
     """Packs a peer discovery message as byte-object.
 
     Arguments:
-        challenge -- challenge for peer offer response.
+    - challenge (int) -- challenge for peer offer response.
 
     Returns:
         packet as byte-object
@@ -152,8 +152,8 @@ def pack_peer_offer(challenge, nonce, data):
     """Packs a peer offer message as byte-object.
 
     Arguments:
-        challenge -- challenge received from original peer discovery.
-        nonce -- nonce according to documentation
+    - challenge (int) -- challenge received from original peer discovery.
+    - nonce (int) -- nonce according to documentation
 
     Returns:
         packet as byte-object
@@ -168,7 +168,8 @@ def pack_peer_info(p2p_listening_port):
     """Packs a peer info message as byte-object.
 
     Arguments:
-        p2p_listening_port -- Port this peer accepts new peer connections at
+    - p2p_listening_port (int) -- Port this peer accepts new peer connections
+      at
 
     Returns:
         peer info packet as byte-object

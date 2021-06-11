@@ -45,9 +45,8 @@ class Peer_connection:
         - reader (StreamReader) -- asyncio StreamReader of connected peer
         - writer (StreamWriter) -- asyncio StreamWriter of connected peer
         - gossip (Gossip) -- gossip responsible for this peer
-        - peer_p2p_listening_port -- (Optional, default: None) Port the
-                                     connected peer accepts new peer
-                                     connections at
+        - peer_p2p_listening_port (int) -- (Optional, default: None) Port the
+          connected peer accepts new peer connections at
         """
         self.gossip = gossip
         self.__reader = reader
@@ -145,7 +144,7 @@ class Peer_connection:
         """Figures out a nonce and sends a peer offer.
 
         Arguments:
-            challenge -- challenge received from original peer discovery
+        - challenge (int) -- challenge received from original peer discovery
         """
         nonce = 0  # TODO find nonce
 
@@ -175,7 +174,7 @@ class Peer_connection:
         yet expired. Also removes the challenge from the saved challenges.
 
         Arguments:
-            challenge -- challenge to check
+        - challenge (int) -- challenge to check
 
         Returns:
             True if the challenge is valid and has not expired.
@@ -191,7 +190,7 @@ class Peer_connection:
         correct handler according the the type. 
 
         Arguments:
-            buf -- received message in byte format
+        - buf (byte-object) -- received message
         """
         type = get_header_type(buf)
         if type == PEER_DISCOVERY:
@@ -212,8 +211,8 @@ class Peer_connection:
         send a response.
 
         Arguments:
-            buf -- received message in byte format. The type must be 
-                   PEER_DISCOVERY
+        - buf (byte-object) -- received message in byte format. The type must 
+          be PEER_DISCOVERY
         """
         msg = parse_peer_discovery(buf)
         if (msg == None):
@@ -227,8 +226,8 @@ class Peer_connection:
         Calls offer_peers() of gossip if everything is ok.
 
         Arguments:
-            buf -- received message in byte format. The type must be 
-                   PEER_DISCOVERY
+        - buf (byte-object) -- received message in byte format. The type must 
+          be PEER_DISCOVERY
         """
         msg = parse_peer_offer(buf)
         if (msg == None):
@@ -254,8 +253,8 @@ class Peer_connection:
         """Handles a peer info message. Saves the received p2p_listening_port.
 
         Arguments:
-            buf -- received message in byte format. The type must be 
-                   PEER_INFO
+        - buf (byte-object) -- received message in byte format. The type must
+          be PEER_INFO
         """
         msg = parse_peer_info(buf)
         if msg == None:
@@ -277,9 +276,13 @@ async def peer_connection_factory(addresses, gossip, p2p_listening_port):
     """Connects to multiple addresses of peers.
 
     Arguments:
-        addresses -- list containing addresses to other peers including port
-        gossip -- gossip instance responsible for potential Peer_connection's
-        p2p_listening_port -- Port this peer accepts new peer connections at
+    - addresses (str List) -- list containing addresses to other peers. 
+      Format: host_ip:port
+    - gossip (Gossip) -- gossip instance responsible for potential 
+      Peer_connection's
+    - p2p_listening_port (int) -- Port this peer accepts new peer connections 
+      at
+
     Returns:
         List containing Peer_connection objects. Empty if no connection can
         be established
@@ -302,9 +305,10 @@ async def __connect_peer(address, gossip, p2p_listening_port):
     """Opens a connection to the given ip & port and creates a Peer_connection.
 
     Arguments:
-       ip -- target ip address
-       port -- target port
-       p2p_listening_port -- Port this peer accepts new peer connections at
+    - ip (str) -- target ip address
+    - port (int) -- target port
+    - p2p_listening_port (int) -- Port this peer accepts new peer connections 
+      at
 
     Returns:
         None if failed to open the connection. 
@@ -327,8 +331,9 @@ async def __send_peer_info(writer, p2p_listening_port):
     StreamWriter
 
     Arguments:
-        writer -- StreamWriter connected to a new peer
-        p2p_listening_port -- Port this peer accepts new peer connections at
+    - writer (StreamWriter) -- StreamWriter connected to a new peer
+    - p2p_listening_port (int) -- Port this peer accepts new peer connections
+      at
     """
     info_packet = pack_peer_info(p2p_listening_port)
     print("Sending PEER INFO with p2p port {} to {}".format(
