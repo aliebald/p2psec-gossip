@@ -37,6 +37,7 @@ In the following steps, replace `<working_branch>` with the name of your branch.
 
 ### Step 4:
 - `git checkout <working_branch>`
+- if master has changes not in working_branch: `git pull origin master` 
 - `git rebase master`
 
 ### Step 5:
@@ -46,3 +47,4 @@ In the following steps, replace `<working_branch>` with the name of your branch.
 ### Step 6:
 - `git push`
 - `git checkout <working_branch>`
+- `git push`
