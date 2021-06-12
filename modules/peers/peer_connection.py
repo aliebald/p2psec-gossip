@@ -7,6 +7,7 @@ import asyncio
 import time
 from random import getrandbits
 
+from modules.pow_producer import produce_pow_peer_offer, valid_nonce_peer_offer
 from modules.peers.peer_packet_parser import (
     PEER_DISCOVERY,
     PEER_OFFER,
@@ -146,8 +147,6 @@ class Peer_connection:
         Arguments:
         - challenge (int) -- challenge received from original peer discovery
         """
-        nonce = 0  # TODO find nonce
-
         # Use target_address to filter the address of the target peer
         target_address = self.get_peer_p2p_listening_address()
         addresses = list(filter(lambda ip: ip != target_address,
@@ -157,8 +156,15 @@ class Peer_connection:
         if len(addresses) == 0:
             print("No other peers connected, do not send peer offer.")
             return
+
         print("responding with peers: {}\r\n".format(addresses))
-        message = pack_peer_offer(challenge, nonce, addresses)
+        # pack peer offer and figure out a valid nonce
+        message = pack_peer_offer(challenge, 0, addresses)
+        message = produce_pow_peer_offer(message)
+        if message == None:
+            print("WARNING: Failed to find valid nonce for peer offer!")
+            return
+
         self.__writer.write(message)
         await self.__writer.drain()
 
@@ -238,8 +244,10 @@ class Peer_connection:
             print("Received invalid challenge in peer offer")
             return
 
-        # TODO check nonce
-
+        # Check nonce
+        if not valid_nonce_peer_offer(buf):
+            print("Received invalid nonce in peer offer")
+            return
         # check if the offer contains our own address
         p2p_address = self.gossip.config.p2p_address
         if p2p_address in data:
