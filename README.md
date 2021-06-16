@@ -32,6 +32,7 @@ In the following steps, replace `<working_branch>` with the name of your branch.
 - Commit your work only to your personal branch, named after your last name. 
 
 ### Step 3:
+- ATTENTION: make sure all branches are pulled!
 - `git checkout master`
 - `git pull origin <working_branch>` 
 
