@@ -7,6 +7,7 @@ import asyncio
 
 from modules.peers.peer_connection import (
     Peer_connection, peer_connection_factory)
+from modules.api.api_connection import Api_connection
 from modules.connection_handler import connection_handler
 
 
@@ -27,6 +28,10 @@ class Gossip:
         print("gossip\r\n")
         self.config = config
         self.peers = []
+        self.apis = []
+        #                          Key - Value
+        # Subscriber list, Format: Int - List of Api_connections
+        self.datasubs = {} 
 
     async def run(self):
         """Starts this gossip instance.
@@ -54,6 +59,18 @@ class Gossip:
         (host, port) = self.config.p2p_address.split(":")
         asyncio.create_task(await connection_handler(
             host, int(port), self.__on_peer_connection))
+
+        # start API connection handler
+        print("Waiting for API connections!")
+        (api_host, api_port) = self.config.api_address.split(":")
+        asyncio.create_task(await connection_handler(
+            api_host, int(api_port), self.__on_api_connection))
+
+    def __on_api_connection(self, reader, writer):
+        new_api = Api_connection(reader, writer, self)
+        print("New API connected", new_api.get_debug_address())
+        self.apis.append(new_api)
+        asyncio.create_task(new_api.run())
 
     def __on_peer_connection(self, reader, writer):
         """Gets called when a new peer tries to connect.
@@ -131,3 +148,22 @@ class Gossip:
                     await peer.send_peer_discovery()
 
             await asyncio.sleep(self.config.search_cooldown)
+
+    async def __add_subscriber(self, datatype, api):
+        """Adds an Api_connection to the Subscriber dict (datasubs)
+        """
+        if datatype in self.datasubs:
+            temp = self.datasubs[datatype]
+            temp.append(api)
+            self.datasubs[datatype] = temp
+        else:
+            self.datasubs[datatype] = [api]
+
+        return
+
+    async def __remove_subscriber(self, api):
+        """Removes an Api_connection from the whole Subscriber dict (datasubs)
+        """
+        for key in self.datasubs:
+            if api in self.datasubs[key]:
+                self.datasubs[key].remove(api)
