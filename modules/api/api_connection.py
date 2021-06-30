@@ -6,9 +6,9 @@ from modules.packet_parser import (
         GOSSIP_NOTIFY,
         GOSSIP_VALIDATION,
         get_header_type,
-        parse_gossip_announce,
+        # parse_gossip_announce,
         parse_gossip_notify,
-        parse_gossip_validation
+        # parse_gossip_validation
 )
 
 
@@ -19,7 +19,6 @@ class Api_connection:
     - gossip (Gossip) -- gossip responsible for this peer
     - reader (StreamReader) -- (private) asyncio StreamReader of connected peer
     - writer (StreamWriter) -- (private) asyncio StreamWriter of connected peer
-    - api_listening_port (int) -- listening_port of connected API
     """
 
     def __init__(self, reader, writer, gossip):
@@ -51,7 +50,7 @@ class Api_connection:
         """Closes the connection to the API user.
         Gossip.close_api() should be called preferably, since it also removes
         the API from the API list and datatype dictionary."""
-        print("Connection to {} closed".format(self.get_debug_address()))
+        print("Connection to {} closed".format(self.get_api_address()))
         try:
             self.__writer.close()
             await self.__writer.wait_closed()
@@ -63,8 +62,6 @@ class Api_connection:
 
         See also:
         - get_own_address()
-        - get_api_listening_address()
-        - get_debug_address() - for debug output
         """
         # TODO returns None on error
         (host, port) = self.__writer.get_extra_info('peername')
@@ -76,27 +73,10 @@ class Api_connection:
 
         See also:
         - get_api_address()
-        - get_api_listening_address()
-        - get_debug_address() - for debug output
         """
         (host, port) = self.__writer.get_extra_info('sockname')
         address = "{}:{}".format(host, port)
         return address
-
-    def get_debug_address(self):
-        """Returns the name/address for debug output.
-        Only use for debug output!
-
-        Returns:
-            If we know the api_listening_port, we will return the api
-            listening address of the connected API user, otherwise ist
-            address (with the random port instead of the p2p port and an added
-            *)
-        """
-        addr = self.get_api_listening_address()
-        if addr is None:
-            addr = self.get_api_address() + "*"
-        return addr
 
     async def __handle_gossip_announce(self, buf):
         return
@@ -121,14 +101,14 @@ class Api_connection:
         type = get_header_type(buf)
         if type == GOSSIP_ANNOUNCE:
             print("\r\nReceived GOSSIP_ANNOUNCE from",
-                  self.get_debug_address())
+                  self.get_api_address())
             await self.__handle_gossip_announce(buf)
         elif type == GOSSIP_NOTIFY:
-            print("\r\nReceived GOSSIP_NOTIFY from", self.get_debug_address())
+            print("\r\nReceived GOSSIP_NOTIFY from", self.get_api_address())
             await self.__handle_gossip_notify(buf)
         elif type == GOSSIP_VALIDATION:
-            print("Received GOSSIP_VALIDATION from", self.get_debug_address())
+            print("Received GOSSIP_VALIDATION from", self.get_api_address())
             self.__handle_gossip_validation(buf)
         else:
             print("\r\nReceived message with unknown type {} from {}".format(
-                type, self.get_debug_address()))
+                type, self.get_api_address()))

@@ -31,7 +31,7 @@ class Gossip:
         self.apis = []
         #                          Key - Value
         # Subscriber list, Format: Int - List of Api_connections
-        self.datasubs = {} 
+        self.datasubs = {}
 
     async def run(self):
         """Starts this gossip instance.
@@ -40,6 +40,13 @@ class Gossip:
         Starts peer controll (responsible for maintaining degree many peers),
         peers and waits for new incoming connections.
         """
+        # start API connection handler
+        (api_host, api_port) = self.config.api_address.split(":")
+        asyncio.create_task(connection_handler(
+            api_host, int(api_port), self.__on_api_connection))
+        print("[API] started API connection handler on {}:{}"
+              .format(api_host, api_port))
+
         # connect to peers in config
         (_, p2p_listening_port) = self.config.p2p_address.split(":")
         if len(self.config.known_peers) > 0:
@@ -60,15 +67,9 @@ class Gossip:
         asyncio.create_task(await connection_handler(
             host, int(port), self.__on_peer_connection))
 
-        # start API connection handler
-        print("Waiting for API connections!")
-        (api_host, api_port) = self.config.api_address.split(":")
-        asyncio.create_task(await connection_handler(
-            api_host, int(api_port), self.__on_api_connection))
-
     def __on_api_connection(self, reader, writer):
         new_api = Api_connection(reader, writer, self)
-        print("New API connected", new_api.get_debug_address())
+        print("New API connected", new_api.get_api_address())
         self.apis.append(new_api)
         asyncio.create_task(new_api.run())
 
