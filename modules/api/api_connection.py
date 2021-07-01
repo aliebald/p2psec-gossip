@@ -1,6 +1,7 @@
 """
 This Module provides the Api_connection class
 """
+import hexdump
 from modules.packet_parser import (
         GOSSIP_ANNOUNCE,
         GOSSIP_NOTIFY,
@@ -37,13 +38,18 @@ class Api_connection:
         connection is closed"""
         while True:
             try:
-                # TODO: correct?
-                size = await self.__reader.read(2)
-                buf = size + await self.__reader.read(size-2)
-                await self.__reader.read()  # read trash/too long packet
+                size_bytes = await self.__reader.read(2)
+                size = int.from_bytes(size_bytes, "big")
+                print("Aquired size: "+str(size)+" Bytes")
+                buf = size_bytes + await self.__reader.read(size-2)
+                # Note: Too long packets would be read incorrectly next loop
+                #       and the API user will be disconnected
+                print("Whole packet: ")
+                hexdump.hexdump(buf)
             except ConnectionError:
                 await self.gossip.close_api(self)
                 return
+            # TODO: async
             await self.__handle_incoming_message(buf)
 
     async def close(self):
@@ -102,13 +108,15 @@ class Api_connection:
         if type == GOSSIP_ANNOUNCE:
             print("\r\nReceived GOSSIP_ANNOUNCE from",
                   self.get_api_address())
-            await self.__handle_gossip_announce(buf)
+            self.__handle_gossip_announce(buf)
         elif type == GOSSIP_NOTIFY:
             print("\r\nReceived GOSSIP_NOTIFY from", self.get_api_address())
-            await self.__handle_gossip_notify(buf)
+            self.__handle_gossip_notify(buf)
         elif type == GOSSIP_VALIDATION:
             print("Received GOSSIP_VALIDATION from", self.get_api_address())
             self.__handle_gossip_validation(buf)
         else:
             print("\r\nReceived message with unknown type {} from {}".format(
                 type, self.get_api_address()))
+            print("[API] Disconnecting API user, wrong message")
+            # self.gossip.
