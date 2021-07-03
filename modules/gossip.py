@@ -150,7 +150,7 @@ class Gossip:
 
             await asyncio.sleep(self.config.search_cooldown)
 
-    async def __add_subscriber(self, datatype, api):
+    async def add_subscriber(self, datatype, api):
         """Adds an Api_connection to the Subscriber dict (datasubs)
         """
         if datatype in self.datasubs:
