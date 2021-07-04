@@ -18,6 +18,9 @@ class Gossip:
     Class variables:
     - config (Config) -- config object used for this instance of gossip
     - peers (Peer_connection List) -- Connected (active) peers
+    - apis (Api_connection List) -- connected APIs
+    - datasubs (int-[Api_connection] Dictionary) -- APIs subscribed to each
+                                                    datatype
     """
 
     def __init__(self, config):
@@ -150,6 +153,10 @@ class Gossip:
 
             await asyncio.sleep(self.config.search_cooldown)
 
+    async def print_api_debug(self):
+        print("[API] connected apis: " + str(self.apis))
+        print("[API] current subscribers: " + str(self.datasubs))
+
     async def add_subscriber(self, datatype, api):
         """Adds an Api_connection to the Subscriber dict (datasubs)
         """
@@ -168,3 +175,16 @@ class Gossip:
         for key in self.datasubs:
             if api in self.datasubs[key]:
                 self.datasubs[key].remove(api)
+        return
+
+    async def close_api(self, api):
+        """Removes an Api connection from:
+            - apis
+            - datasubs
+           and closes the socket"""
+        await self.__remove_subscriber(api)
+        if api in self.apis:
+            self.apis.remove(api)
+        # Close the socket
+        await api.close()
+        return
