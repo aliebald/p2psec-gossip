@@ -39,7 +39,7 @@ class Gossip:
     async def run(self):
         """Starts this gossip instance.
         Tries to connect to all known peers or connect to bootstrapping
-        service, if no peers where in the config. 
+        service, if no peers where in the config.
         Starts peer controll (responsible for maintaining degree many peers),
         peers and waits for new incoming connections.
         """
@@ -123,7 +123,7 @@ class Gossip:
         addresses = []
         for peer in self.peers:
             addresses.append(peer.get_peer_p2p_listening_address())
-        return list(filter(lambda x: x != None, addresses))
+        return list(filter(lambda x: x is not None, addresses))
 
     async def close_peer(self, peer):
         """Removes a Peer_connection from the Peer_connection list and calls
