@@ -8,12 +8,13 @@ The following settings can be adjusted in the `config.ini` file in the root dire
 edge base. Older items will be removed to ensure space for newer items if the peer's
 knowledge base exceeds this limit.
 - `degree`: Number of peers the current peer has to exchange information with.
-- `max_connections`: _TODO Documentation_
-- `search_cooldown`: Cooldown for peer discovery in seconds.
-- `bootstrapper`: _TODO Documentation_
-- `p2p_address`: _TODO Documentation_
-- `api_address`: _TODO Documentation_
+- `min_connections`: Minimum amount of alive connections this peer should try to keep.
+- `max_connections`: Maximum amount of alive connections this peer keeps.
+- `search_cooldown`: In this interval it is checked whether we have min connections peers. If not start peer discovery.
+- `p2p_address`: Listening ip and port number for other Gossip peers.
+- `api_address`: Listening ip and port number for API connections.
 - `known_peers`: comma separated list containing ip addresses of potential Peers
+- `bootstrapper`: One trustworthy bootstrapping node, used as a fallback.
 
 # Git Workflow
 
