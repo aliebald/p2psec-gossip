@@ -13,6 +13,7 @@ from modules.peers.peer_packet_parser import (
     PEER_OFFER,
     PEER_INFO,
     get_header_type,
+    pack_peer_announce,
     pack_peer_discovery,
     pack_peer_offer,
     pack_peer_info,
@@ -138,8 +139,13 @@ class Peer_connection:
     async def send_peer_discovery(self):
         """Sends a peer discovery message."""
         message = pack_peer_discovery(self.__generate_challenge())
-        self.__writer.write(message)
-        await self.__writer.drain()
+        await self.__send(message)
+
+    async def send_peer_announce(self, id, ttl, data_type, data):
+        """Sends a peer announce message. For documentation of parameters, see 
+        the project documentation"""
+        message = pack_peer_announce(id, ttl, data_type, data)
+        await self.__send(message)
 
     async def __send_peer_offer(self, challenge):
         """Figures out a nonce and sends a peer offer.
@@ -165,6 +171,14 @@ class Peer_connection:
             print("WARNING: Failed to find valid nonce for peer offer!")
             return
 
+        await self.__send(message)
+
+    async def __send(self, message):
+        """Sends a message to the connected peer. Should be awaited
+
+        Arguments:
+        - message (byte-object) -- message that should be send
+        """
         self.__writer.write(message)
         await self.__writer.drain()
 
