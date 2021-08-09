@@ -1,3 +1,5 @@
+import os
+import sys
 import argparse
 import asyncio
 
@@ -29,6 +31,12 @@ def parse_arguments():
 
 
 async def main():
+    # This script requires Python version 3.9 or newer to run
+    if not sys.version_info >= (3, 9):
+        raise EnvironmentError("Python version 3.9 or newer is required. "
+                               f"(detected: {sys.version})")
+
+    os.chdir(os.path.dirname(sys.argv[0]))
     (path,) = parse_arguments()
     print("Starting gossip. Path: \"{}\"".format(path))
     config = Config(path)
