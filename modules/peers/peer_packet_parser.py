@@ -1,12 +1,13 @@
 from struct import unpack, pack, error
 
-
+PEER_ANNOUNCE = 504
 PEER_DISCOVERY = 505
 PEER_OFFER = 506
 PEER_INFO = 507
 
 # struct formats for peer packets
-# data is not included in the formats, since its size is variable
+# data is not included in the formats, since its size is dynamic
+FORMAT_PEER_ANNOUNCE = "!HHQBBH"
 FORMAT_PEER_DISCOVERY = "!HHQ"
 FORMAT_PEER_OFFER = "!HHQQ"
 FORMAT_PEER_INFO = "!HHHH"
@@ -57,6 +58,32 @@ def __check_size(buf):
     return len(buf) == __get_header_size(buf)
 
 ##############################################################################
+
+
+def parse_peer_announce(buf):
+    """Parses a peer announce message to a human-readable tuple
+    [!] Does (currently) not check for any correctness in the body fields!
+
+    Arguments:
+    - buf (byte-object) -- packet
+
+    Returns:
+        None if an error occurred, otherwise:
+        tuple (size, type, id,  ttl, data_type, data)
+        as    (int,  int,  int, int, int,       byte-object)
+    """
+    # check header: size
+    if not __check_size(buf):
+        print("Incorrect packet size in parse_peer_announce!")
+        return None
+
+    try:
+        (size, type, id, ttl, reserved, data_type) = unpack(
+            FORMAT_PEER_ANNOUNCE, buf[:16])
+        return (size, type, id, ttl, data_type, buf[16:])
+    except error:
+        print("Struct parsing error in parse_peer_announce!")
+        return None
 
 
 def parse_peer_discovery(buf):
@@ -133,6 +160,25 @@ def parse_peer_info(buf):
     except error:
         print("Struct parsing error in parse_peer_offer!")
         return None
+
+
+def pack_peer_announce(id, ttl, data_type, data):
+    """Packs a peer announce message as byte-object.
+
+    Arguments:
+    - id (int) -- unique message id for this message, stays the same when
+                  forwarding
+    - ttl (int) -- Time to live. 0 for infinite
+    - data_type (int)
+    - data (byte-object)
+
+    Returns:
+        packet as byte-object
+    """
+    size = 16 + len(data)
+    buf = pack(FORMAT_PEER_ANNOUNCE, size, PEER_ANNOUNCE,
+               id, ttl, 0, data_type) + data
+    return buf
 
 
 def pack_peer_discovery(challenge):
