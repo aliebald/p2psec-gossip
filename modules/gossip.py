@@ -9,6 +9,7 @@ from modules.peers.peer_connection import (
     Peer_connection, peer_connection_factory)
 from modules.api.api_connection import Api_connection
 from modules.connection_handler import connection_handler
+from random import (randint, sample)
 
 
 class Gossip:
@@ -35,6 +36,8 @@ class Gossip:
         #                          Key - Value
         # Subscriber list, Format: Int - List of Api_connections
         self.datasubs = {}
+        self.peer_announce_ids = []
+        self.id_limiter = 500
 
     async def run(self):
         """Starts this gossip instance.
@@ -187,4 +190,18 @@ class Gossip:
             self.apis.remove(api)
         # Close the socket
         await api.close()
+        return
+
+    async def handle_gossip_announce(self, size, mtype, ttl, dtype, data):
+        # Generate PEER_ANNOUNCE id
+        packet_id = randint(0, 2**64-1)
+        while packet_id in self.peer_announce_ids:
+            packet_id = randint(0, 2**64-1)
+        # Save this id for routing loop prevention
+        self.peer_announce_ids.append(packet_id)
+        # Choose degree peers randomly
+        peer_sample = sample(self.peers, self.degree)
+        # send PEER_ANNOUNCE on each Peer_connection
+        for peer in peer_sample:
+            await peer.send_peer_announce(packet_id, ttl, dtype, data)
         return

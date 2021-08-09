@@ -112,10 +112,7 @@ class Api_connection:
 
         (size, mtype, ttl, dtype, data) = tmp
 
-        # check ttl
-
-        #
-
+        await self.gossip.handle_gossip_announce(size, mtype, ttl, dtype, data)
         return
 
     async def __handle_gossip_notify(self, buf):
