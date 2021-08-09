@@ -108,7 +108,7 @@ class Config:
         configparser = ConfigParser()
         parsed = configparser.read(path)
         if len(parsed) != 1:
-            raise KeyError(f"No config found at \"{path}\"")
+            raise IOError(f"No config found at \"{path}\"")
 
         self.__parse_config(configparser)
         self.__check_config()

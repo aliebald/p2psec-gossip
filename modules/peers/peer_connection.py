@@ -77,7 +77,7 @@ class Peer_connection:
         try:
             self.__writer.close()
             await self.__writer.wait_closed()
-        except:
+        except Exception:
             return
 
     def get_peer_p2p_listening_address(self):
