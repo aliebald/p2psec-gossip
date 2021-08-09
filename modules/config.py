@@ -4,10 +4,45 @@ This module provides the Config class.
 
 from configparser import ConfigParser
 
+
+def __check_min_connections(config):
+    """Checks if min_connections >= 0"""
+    if config.min_connections < 0:
+        raise KeyError(f"min_connections ({config.min_connections}) must be "
+                       "greater than or equal to 0")
+
+
+def __check_max_connections(config):
+    """Checks if max_connections >= min_connections"""
+    if config.max_connections < config.min_connections:
+        raise KeyError(f"max_connections ({config.max_connections}) must be "
+                       "greater than or equal to min_connections "
+                       f"({config.min_connections})")
+
+
+def __check_degree(config):
+    """Checks if degree <= max_connections and degree <= min_connections)"""
+    if config.degree > config.max_connections:
+        raise KeyError(f"degree ({config.degree}) must be less than or equal "
+                       f"to max_connections ({config.max_connections})")
+    if config.degree > config.min_connections:
+        raise KeyError(f"degree ({config.degree}) must be greater than or "
+                       f"equal to min_connections ({config.min_connections})")
+
+
+def __check_search_cooldown(config):
+    """Checks if search_cooldown greater than 0"""
+    if config.search_cooldown <= 0:
+        raise KeyError(f"search_cooldown ({config.search_cooldown}) must be "
+                       "greater than 0")
+
+
 # config blueprint.
 # If a field is set to required, the key must exist in the config beeing parsed
 # If required: False, a default value must (!) be given
 # If "type" is given, it will try to cast to that type
+# If "checks" is given, it needs to provide a function that checks the value of
+# this key. The function needs to accept a config object as parameter
 config_config = {
     "gossip": {
         "cache_size": {
@@ -16,20 +51,24 @@ config_config = {
         },
         "degree": {
             "required": True,
-            "type": int
+            "type": int,
+            "checks": __check_degree
         },
         "min_connections": {
             "required": True,
-            "type": int
+            "type": int,
+            "checks": __check_min_connections
         },
         "max_connections": {
             "required": True,
-            "type": int
+            "type": int,
+            "checks": __check_max_connections
         },
         "search_cooldown": {
             "required": False,
             "default": 120000,  # 2 minutes
-            "type": int
+            "type": int,
+            "checks": __check_search_cooldown
         },
         "bootstrapper": {
             "required": True
@@ -69,6 +108,7 @@ class Config:
         configparser = ConfigParser()
         configparser.read(path)
         self.__parse_config(configparser)
+        self.__check_config()
 
         # split known peers string into list, if a string was loaded
         if len(self.known_peers) > 0:
@@ -123,6 +163,18 @@ class Config:
                      "config. Please refer to the README for information."
                      ).format(key, section)
             raise KeyError(error)
+
+    def __check_config(self):
+        """Executes all checks given in the config_config"""
+        for section in config_config:
+            for key in config_config[section]:
+                self.__check_key(section, key)
+
+    def __check_key(self, section, key):
+        """Executes the checks given for this key in config_config, if
+        one is provided. Passes this config as parameter"""
+        if "checks" in config_config[section][key]:
+            config_config[section][key]["checks"](self)
 
     def print_config(self):
         """Prints all available keys and theire values."""
