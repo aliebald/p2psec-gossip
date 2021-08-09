@@ -12,9 +12,13 @@ config_config = {
     "gossip": {
         "cache_size": {
             "required": True,
-            "type": int
+            "type": int,
         },
         "degree": {
+            "required": True,
+            "type": int
+        },
+        "min_connections": {
             "required": True,
             "type": int
         },
@@ -52,6 +56,7 @@ class Config:
     Class variables:
     - cache_size: see readme
     - degree: see readme
+    - min_connections: see readme
     - max_connections: see readme
     - search_cooldown: see readme
     - bootstrapper: see readme
