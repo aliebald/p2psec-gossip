@@ -2,13 +2,12 @@
 This Module provides the Api_connection class
 """
 import hexdump
-from asyncio import IncompleteReadError
 from modules.packet_parser import (
         GOSSIP_ANNOUNCE,
         GOSSIP_NOTIFY,
         GOSSIP_VALIDATION,
         get_header_type,
-        # parse_gossip_announce,
+        parse_gossip_announce,
         parse_gossip_notify,
         # parse_gossip_validation
 )
@@ -51,17 +50,13 @@ class Api_connection:
     async def run(self):
         """Waits for incoming messages and handles them. Runs until the
         connection is closed"""
-        count = 0
         while True:
-            count += 1
-            print(str(count))
             try:
                 if self.__writer.is_closing():
                     break
-                # TODO: stop reading if empty
                 size_bytes = await self.__reader.read(2)
                 size = int.from_bytes(size_bytes, "big")
-                buf = size_bytes + await self.__reader.read(size)
+                buf = size_bytes + await self.__reader.read(size-2)
 
                 # Note: Too long packets would be read incorrectly next loop
                 #       and the API user will be disconnected
@@ -70,9 +65,6 @@ class Api_connection:
                 print("size field: "+str(size)+" Bytes")
                 print("Whole packet: ")
                 hexdump.hexdump(buf)
-            except IncompleteReadError:
-                await self.gossip.close_api(self)
-                return
             except ConnectionError:
                 await self.gossip.close_api(self)
                 return
@@ -101,7 +93,8 @@ class Api_connection:
         return address
 
     def get_own_address(self):
-        """Returns the address of this API user in the format host:port
+        """Returns the listening address of ourselves locally in the format
+            host:port
 
         See also:
         - get_api_address()
@@ -111,6 +104,18 @@ class Api_connection:
         return address
 
     async def __handle_gossip_announce(self, buf):
+        tmp = parse_gossip_announce(buf)
+        if tmp == ():
+            print("[API] Disconnecting API user " + str(self) +
+                  ", GOSSIP_ANNOUNCE malformed")
+            await self.gossip.close_api(self)
+
+        (size, mtype, ttl, dtype, data) = tmp
+
+        # check ttl
+
+        #
+
         return
 
     async def __handle_gossip_notify(self, buf):
@@ -119,11 +124,13 @@ class Api_connection:
         (datatype) = parse_gossip_notify(buf)
         await self.gossip.add_subscriber(datatype, self)
 
-        # TODO: remove debug
         print("[API] "+str(self)+" subscribed to datatype "+str(datatype))
         return
 
     async def __handle_gossip_validation(self, buf):
+        """after a GOSSIP_ANNOUNCE to an API user we receive a
+        GOSSIP_VALIDATION; if its negative we do not spread further.
+        """
         return
 
     async def __handle_incoming_message(self, buf):
