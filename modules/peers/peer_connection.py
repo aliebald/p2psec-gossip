@@ -9,6 +9,7 @@ from random import getrandbits
 
 from modules.pow_producer import produce_pow_peer_offer, valid_nonce_peer_offer
 from modules.peers.peer_packet_parser import (
+    PEER_ANNOUNCE,
     PEER_DISCOVERY,
     PEER_OFFER,
     PEER_INFO,
@@ -17,6 +18,7 @@ from modules.peers.peer_packet_parser import (
     pack_peer_discovery,
     pack_peer_offer,
     pack_peer_info,
+    parse_peer_announce,
     parse_peer_discovery,
     parse_peer_offer,
     parse_peer_info
@@ -213,7 +215,10 @@ class Peer_connection:
         - buf (byte-object) -- received message
         """
         type = get_header_type(buf)
-        if type == PEER_DISCOVERY:
+        if type == PEER_ANNOUNCE:
+            print("\r\nReceived PEER_ANNOUNCE from", self.get_debug_address())
+            await self.__handle_peer_announce(buf)
+        elif type == PEER_DISCOVERY:
             print("\r\nReceived PEER_DISCOVERY from", self.get_debug_address())
             await self.__handle_peer_discovery(buf)
         elif type == PEER_OFFER:
@@ -225,6 +230,22 @@ class Peer_connection:
         else:
             print("\r\nReceived message with unknown type {} from {}".format(
                 type, self.get_debug_address()))
+
+    async def __handle_peer_announce(self, buf):
+        """Handles a peer announce message and calls __send_peer_offer() to
+        send a response.
+
+        Arguments:
+        - buf (byte-object) -- received message in byte format. The type must 
+          be PEER_ANNOUNCE
+        """
+        msg = parse_peer_announce(buf)
+        if msg == None:
+            return
+
+        (size, type, id, ttl, data_type, data) = msg
+        # TODO uncomment when handle_peer_announce is implemented
+        # self.gossip.handle_peer_announce(id, ttl, data_type, data)
 
     async def __handle_peer_discovery(self, buf):
         """Handles a peer discovery message and calls __send_peer_offer() to
