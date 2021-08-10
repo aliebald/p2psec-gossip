@@ -26,6 +26,10 @@ class __SetQueue(queue.Queue):
     def _get(self):
         return self.queue.pop()
 
+    def __contains__(self, item):
+        with self.mutex:
+            return item in self.queue
+
 
 class Gossip:
     """The Gossip class represents a single instance of Gossip. By
@@ -212,10 +216,11 @@ class Gossip:
         # duplicates wont be added as we use SetQueue
         self.peer_announce_ids.put(packet_id)
 
-    async def handle_gossip_announce(self, size, mtype, ttl, dtype, data):
+    async def handle_gossip_announce(self, ttl, dtype, data):
         # Generate PEER_ANNOUNCE id
-        # TODO: regenerate if duplicate; first Sender will not detect loop
         packet_id = randint(0, 2**64-1)
+        while self.peer_announce_ids.__contains__(packet_id):
+            packet_id = randint(0, 2**64-1)
         # Save this id for routing loop prevention
         self.__add_peer_announce_id(packet_id)
         # Choose degree peers randomly
@@ -223,4 +228,23 @@ class Gossip:
         # send PEER_ANNOUNCE on each Peer_connection
         for peer in peer_sample:
             await peer.send_peer_announce(packet_id, ttl, dtype, data)
+        return
+
+    async def handle_peer_announce(self, packet_id, ttl, dtype, data):
+        # check if id is already in id list
+        if self.peer_announce_ids.__contains__(packet_id):
+            # stop routing loop
+            return
+        else:
+            self.__add_peer_announce_id(packet_id)
+        
+        if dtype in self.datasubs.keys():
+            for sub in self.datasubs:
+                # send GOSSIP_NOTIFICATION
+                sub.send_gossip_notification
+                # wait for answers
+
+
+        # does the dtype exist/have subscribers?
+        return
         return
