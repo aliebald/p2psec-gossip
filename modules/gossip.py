@@ -13,6 +13,20 @@ from random import (randint, sample)
 import queue
 
 
+# FIFO Queue which will not add duplicates
+# Source: https://stackoverflow.com/a/16506527
+class __SetQueue(queue.Queue):
+    # Use a set as a basis to avoid duplicates
+    def _init(self, maxsize):
+        self.queue = set()
+
+    def _put(self, item):
+        self.queue.add(item)
+
+    def _get(self):
+        return self.queue.pop()
+
+
 class Gossip:
     """The Gossip class represents a single instance of Gossip. By
     instanciating it, gossip is started.
@@ -37,7 +51,7 @@ class Gossip:
         #                          Key - Value
         # Subscriber list, Format: Int - List of Api_connections
         self.datasubs = {}
-        self.peer_announce_ids = queue.Queue(self.config.cache_size)
+        self.peer_announce_ids = __SetQueue(self.config.cache_size)
 
     async def run(self):
         """Starts this gossip instance.
@@ -195,13 +209,13 @@ class Gossip:
     async def __add_peer_announce_id(self, packet_id):
         if self.peer_announce_ids.full():
             self.peer_announce_ids.get()
+        # duplicates wont be added as we use SetQueue
         self.peer_announce_ids.put(packet_id)
 
     async def handle_gossip_announce(self, size, mtype, ttl, dtype, data):
         # Generate PEER_ANNOUNCE id
+        # TODO: regenerate if duplicate; first Sender will not detect loop
         packet_id = randint(0, 2**64-1)
-        while packet_id in self.peer_announce_ids:
-            packet_id = randint(0, 2**64-1)
         # Save this id for routing loop prevention
         self.__add_peer_announce_id(packet_id)
         # Choose degree peers randomly
