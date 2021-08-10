@@ -56,6 +56,9 @@ class Gossip:
         # Subscriber list, Format: Int - List of Api_connections
         self.datasubs = {}
         self.peer_announce_ids = __SetQueue(self.config.cache_size)
+        # Dictionary of open PEER_ANNOUNCEs;
+        # Key: Message ID, Value: [data, API Subscribers]
+        self.announces_to_verify = {}
 
     async def run(self):
         """Starts this gossip instance.
@@ -231,20 +234,57 @@ class Gossip:
         return
 
     async def handle_peer_announce(self, packet_id, ttl, dtype, data):
-        # check if id is already in id list
+        # routing loops: check if id is already in id list
         if self.peer_announce_ids.__contains__(packet_id):
-            # stop routing loop
             return
+
+        await self.__add_peer_announce_id(packet_id)
+        # TODO: ttl edge cases
+
+        if ttl == 1:  # ends here, no forwarding
+            if dtype in self.datasubs.keys():
+                for sub in self.datasubs.get(dtype):
+                    sub.send_gossip_notification(packet_id, dtype, data)
+            else:
+                return
         else:
-            self.__add_peer_announce_id(packet_id)
-        
-        if dtype in self.datasubs.keys():
-            for sub in self.datasubs:
-                # send GOSSIP_NOTIFICATION
-                sub.send_gossip_notification
-                # wait for answers
-
-
-        # does the dtype exist/have subscribers?
+            if ttl > 0:
+                ttl -= 1
+            if dtype in self.datasubs.keys():
+                # save message and subs: [ttl, dtype, data, api1, api2, ...]
+                self.announces_to_verify[packet_id] = [ttl, dtype, data]
+                self.announces_to_verify[packet_id].extend(
+                        self.datasubs.get(dtype))
+                for sub in self.datasubs.get(dtype):
+                    sub.send_gossip_notification(packet_id, dtype, data)
+            else:
+                self.__send_peer_announce_to_sample(packet_id, ttl,
+                                                    dtype, data)
         return
+
+    async def handle_gossip_validation(self, msg_id, valid, api):
+        if valid:
+            if msg_id in self.announces_to_verify.keys():
+                self.announces_to_verify[msg_id].remove(api)
+                # check if we are the last to verify: only data and ttl remain
+                if len(self.announces_to_verify[msg_id]) == 2:
+                    # delete the key
+                    tmp_list = self.announces_to_verify.pop(msg_id, None)
+                    # tmp_list: [ttl, dtype, data]
+                    ttl = tmp_list[0]
+                    dtype = tmp_list[1]
+                    data = tmp_list[2]
+                    # forward
+                    self.__send_peer_announce_to_sample(msg_id, ttl,
+                                                        dtype, data)
+        else:
+            # delete the whole entry
+            self.announces_to_verify.pop(msg_id, None)
+        return
+
+    async def __send_peer_announce_to_sample(self, packet_id, ttl, dtype,
+                                             data):
+        peer_sample = sample(self.peers, self.config.degree)
+        for peer in peer_sample:
+            await peer.send_peer_announce(packet_id, ttl, dtype, data)
         return

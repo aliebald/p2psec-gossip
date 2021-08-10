@@ -9,7 +9,8 @@ from modules.packet_parser import (
         get_header_type,
         parse_gossip_announce,
         parse_gossip_notify,
-        # parse_gossip_validation
+        parse_gossip_validation,
+        build_gossip_notification
 )
 
 
@@ -128,6 +129,8 @@ class Api_connection:
         """after a GOSSIP_ANNOUNCE to an API user we receive a
         GOSSIP_VALIDATION; if its negative we do not spread further.
         """
+        (msg_id, valid) = parse_gossip_validation(buf)
+        await self.gossip.handle_gossip_validation(msg_id, valid, self)
         return
 
     async def __handle_incoming_message(self, buf):
@@ -158,3 +161,7 @@ class Api_connection:
         # Debug
         await self.gossip.print_api_debug()
         return
+
+    async def send_gossip_notification(self, msg_id, dtype, data):
+        buf = build_gossip_notification(msg_id, dtype, data)
+        self.writer.write(buf)
