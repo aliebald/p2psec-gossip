@@ -10,6 +10,7 @@ from modules.peers.peer_connection import (
 from modules.api.api_connection import Api_connection
 from modules.connection_handler import connection_handler
 from random import (randint, sample)
+import queue
 
 
 class Gossip:
@@ -36,8 +37,7 @@ class Gossip:
         #                          Key - Value
         # Subscriber list, Format: Int - List of Api_connections
         self.datasubs = {}
-        self.peer_announce_ids = []
-        self.id_limiter = 500
+        self.peer_announce_ids = queue.Queue(self.config.cache_size)
 
     async def run(self):
         """Starts this gossip instance.
@@ -192,15 +192,20 @@ class Gossip:
         await api.close()
         return
 
+    async def __add_peer_announce_id(self, packet_id):
+        if self.peer_announce_ids.full():
+            self.peer_announce_ids.get()
+        self.peer_announce_ids.put(packet_id)
+
     async def handle_gossip_announce(self, size, mtype, ttl, dtype, data):
         # Generate PEER_ANNOUNCE id
         packet_id = randint(0, 2**64-1)
         while packet_id in self.peer_announce_ids:
             packet_id = randint(0, 2**64-1)
         # Save this id for routing loop prevention
-        self.peer_announce_ids.append(packet_id)
+        self.__add_peer_announce_id(packet_id)
         # Choose degree peers randomly
-        peer_sample = sample(self.peers, self.degree)
+        peer_sample = sample(self.peers, self.config.degree)
         # send PEER_ANNOUNCE on each Peer_connection
         for peer in peer_sample:
             await peer.send_peer_announce(packet_id, ttl, dtype, data)
