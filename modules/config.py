@@ -117,6 +117,13 @@ class Config:
         if len(self.known_peers) > 0:
             self.known_peers = self.known_peers.replace(" ", "").split(",")
 
+    def __str__(self):
+        """Returns this config as a string"""
+        str = "[gossip]:\n"
+        for key in vars(self):
+            str += f"{key} = {vars(self)[key]}\n"
+        return str
+
     def __parse_config(self, configparser):
         """Parses the whole config as specified in config_config"""
         for section in config_config:
@@ -178,9 +185,3 @@ class Config:
         one is provided. Passes this config as parameter"""
         if "checks" in config_config[section][key]:
             config_config[section][key]["checks"](self)
-
-    def print_config(self):
-        """Prints all available keys and theire values."""
-        print("[gossip]:")
-        for key in vars(self):
-            print("{} = {}".format(key, vars(self)[key]))
