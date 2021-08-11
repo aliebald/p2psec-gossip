@@ -70,9 +70,103 @@ class Test_config(unittest.TestCase):
         generate_test_config(max_connections=0)
         self.__check_raises_valid_exception(KeyError)
 
+    def test_invalid_bootstrapper(self):
+        # Check if an KeyError is raised when the port is missing
+        generate_test_config(bootstrapper="127.0.0.1")
+        self.__check_raises_valid_exception(KeyError)
+
+        # Check if an KeyError is raised when the ip is too large
+        generate_test_config(bootstrapper="127.0.0.0.1:100")
+        self.__check_raises_valid_exception(KeyError)
+
+        # Check if an KeyError is raised when the bootstrapper is a single
+        # space
+        generate_test_config(bootstrapper=" ")
+        self.__check_raises_valid_exception(KeyError)
+
+        # Check if an KeyError is raised when the bootstrapper is just a number
+        generate_test_config(bootstrapper="1234")
+        self.__check_raises_valid_exception(KeyError)
+
+    def test_invalid_p2p_address(self):
+        # Check if an KeyError is raised when the port is missing
+        generate_test_config(p2p_address="127.0.0.1")
+        self.__check_raises_valid_exception(KeyError)
+
+        # Check if an KeyError is raised when the ip is too large
+        generate_test_config(p2p_address="127.0.0.0.1:100")
+        self.__check_raises_valid_exception(KeyError)
+
+        # Check if an KeyError is raised when the p2p_address is a single space
+        generate_test_config(p2p_address=" ")
+        self.__check_raises_valid_exception(KeyError)
+
+        # Check if an KeyError is raised when the p2p_address is just a number
+        generate_test_config(p2p_address="1234")
+        self.__check_raises_valid_exception(KeyError)
+
+    def test_invalid_api_address(self):
+        # Check if an KeyError is raised when the port is missing
+        generate_test_config(api_address="127.0.0.1")
+        self.__check_raises_valid_exception(KeyError)
+
+        # Check if an KeyError is raised when the ip is too large
+        generate_test_config(api_address="127.0.0.0.1:100")
+        self.__check_raises_valid_exception(KeyError)
+
+        # Check if an KeyError is raised when the api_address is a single space
+        generate_test_config(api_address=" ")
+        self.__check_raises_valid_exception(KeyError)
+
+        # Check if an KeyError is raised when the api_address is just a number
+        generate_test_config(api_address="1234")
+        self.__check_raises_valid_exception(KeyError)
+
+    def test_invalid_known_peers(self):
+        # Check if an KeyError is raised when the port is missing
+        generate_test_config(known_peers="127.0.0.1")
+        self.__check_raises_valid_exception(KeyError)
+
+        # Check if an KeyError is raised when the ip is too large
+        generate_test_config(known_peers="127.0.0.0.1:100")
+        self.__check_raises_valid_exception(KeyError)
+
+        # Check if an KeyError is raised when the known_peers is just a number
+        generate_test_config(known_peers="127.0.0.1:100, 1234")
+        self.__check_raises_valid_exception(KeyError)
+
+        # Check if an KeyError is raised when the known_peers contains
+        # duplicates
+        generate_test_config(known_peers="127.0.0.1:1000, 127.0.0.1:1000")
+        self.__check_raises_valid_exception(KeyError)
+
+    def test_valid_known_peers(self):
+        # Check if no Error is raised when the known_peers is a single space
+        # -> is considert empty
+        generate_test_config(known_peers=" ")
+        self.__check_raises_no_exception()
+
+        # Check if no Error is raised when the known_peers has one valid entry
+        generate_test_config(known_peers="127.0.0.1:1000")
+        self.__check_raises_no_exception()
+
+        # Check if no Error is raised when the known_peers has two valid entry
+        generate_test_config(known_peers="127.0.0.1:1000, 127.0.0.1:2000")
+        self.__check_raises_no_exception()
+
+        # Check if no Error is raised when the known_peers has tree valid entry
+        generate_test_config(
+            known_peers="127.0.0.1:1000, 127.0.0.1:2000, 127.0.0.1:3000")
+        self.__check_raises_no_exception()
+
     def test_valid_no_except(self):
         generate_test_config()
         # Tests if a valid config is not raising an exception
+        self.__check_raises_no_exception()
+
+    def __check_raises_no_exception(self):
+        """Asserts that the initialization for the generated Config 
+        ("testconfig.ini") does not fail"""
         try:
             Config("testconfig.ini")
         except Exception as e:
@@ -94,10 +188,10 @@ def generate_test_config(
     min_connections="15",
     max_connections="30",
     search_cooldown="30",
-    bootstrapper="127.0.0.1: 1000",
-    p2p_address="127.0.0.1: 6001",
-    api_address="127.0.0.1: 7001",
-    known_peers="127.0.0.1: 1000"
+    bootstrapper="127.0.0.1:1000",
+    p2p_address="127.0.0.1:6001",
+    api_address="127.0.0.1:7001",
+    known_peers="127.0.0.1:1000, 127.0.0.1:2000"
 ):
     """Generates a config file, testconfig.ini in the current directory, for 
     testing. Set parameters to None to not include them in the config. If all 
