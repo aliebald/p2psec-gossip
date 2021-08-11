@@ -1,8 +1,14 @@
 """
-This module provides the Config class.
+This module provides the Config class, which s abstracts the parsing required
+to read config files and provides easy access to the variables inside the given 
+configfile.
+
+In this file there are also a few checks and a format for the config class. The
+class itself can be found bellow those.
 """
 
 from configparser import ConfigParser
+import ipaddress
 
 
 def __check_cache_size(config):
@@ -58,6 +64,64 @@ def __check_search_cooldown(config):
                        "greater than 0")
 
 
+def __check_bootstrapper(config):
+    """Checks if the bootstrapper is in a valid format"""
+    if not __is_valid_ip(config.bootstrapper):
+        raise KeyError(f"bootstrapper ({config.bootstrapper}) is not in a "
+                       "valid format. The format must be: <ip_address>:<port>")
+
+
+def __check_p2p_address(config):
+    """Checks if the p2p_address is in a valid format"""
+    if not __is_valid_ip(config.p2p_address):
+        raise KeyError(f"p2p_address ({config.p2p_address}) is not in a "
+                       "valid format. The format must be: <ip_address>:<port>")
+
+
+def __check_api_address(config):
+    """Checks if the api_address is in a valid format"""
+    if not __is_valid_ip(config.api_address):
+        raise KeyError(f"api_address ({config.api_address}) is not in a "
+                       "valid format. The format must be: <ip_address>:<port>")
+
+
+def __check_known_peers(config):
+    """Checks if all given peer addresses are in a valid format"""
+    if len(config.known_peers) == 0:
+        return
+
+    peers = config.known_peers.replace(" ", "").split(",")
+    for peer in peers:
+        if not __is_valid_ip(peer):
+            raise KeyError(f"known_peers address ({peer}) is not in a valid "
+                           "format. The format must be: <ip_address>:<port>")
+
+
+def __is_valid_ip(ip):
+    """Checks if the given ip is in a valid format for the config.
+    Format: <ip_address>:<port>"""
+    def __is_valid_port(port):
+        if len(str(port)) == 0:
+            return False
+        try:
+            int(port)
+        except ValueError:
+            return False
+        return True
+
+    address = ip.split(":")
+    if len(address) != 2:
+        return False
+
+    ip, port = address
+    try:
+        ipaddress.ip_address(ip)
+    except ValueError:
+        return False
+
+    return __is_valid_port(port)
+
+
 # config blueprint.
 # If a field is set to required, the key must exist in the config beeing parsed
 # If required: False, a default value must (!) be given
@@ -93,17 +157,21 @@ config_config = {
             "checks": __check_search_cooldown
         },
         "bootstrapper": {
-            "required": True
+            "required": True,
+            "checks": __check_bootstrapper
         },
         "p2p_address": {
-            "required": True
+            "required": True,
+            "checks": __check_p2p_address
         },
         "api_address": {
-            "required": True
+            "required": True,
+            "checks": __check_api_address
         },
         "known_peers": {
             "required": False,
-            "default": []
+            "default": [],
+            "checks": __check_known_peers
         },
     }
 }
