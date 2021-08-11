@@ -141,12 +141,15 @@ class Peer_connection:
     async def send_peer_discovery(self):
         """Sends a peer discovery message."""
         message = pack_peer_discovery(self.__generate_challenge())
+        logging.info(f"Sending PEER DISCOVERY to {self.get_debug_address()}\n")
         await self.__send(message)
 
     async def send_peer_announce(self, id, ttl, data_type, data):
         """Sends a peer announce message. For documentation of parameters, see 
         the project documentation"""
         message = pack_peer_announce(id, ttl, data_type, data)
+        logging.info(f"Sending PEER ANNOUNCE with id: {id}, ttl: {ttl} and "
+                     f" data type: {data_type}")
         await self.__send(message)
 
     async def __send_peer_offer(self, challenge):
@@ -165,7 +168,6 @@ class Peer_connection:
             logging.info("No other peers connected, do not send peer offer.")
             return
 
-        logging.info(f"Responding with peers: {addresses}\r\n")
         # pack peer offer and figure out a valid nonce
         message = pack_peer_offer(challenge, 0, addresses)
         message = produce_pow_peer_offer(message)
@@ -173,6 +175,7 @@ class Peer_connection:
             logging.warning("Failed to find valid nonce for peer offer!")
             return
 
+        logging.info(f"Sending PEER OFFER with peers: {addresses}\n")
         await self.__send(message)
 
     async def __send(self, message):
@@ -217,22 +220,22 @@ class Peer_connection:
         type = get_header_type(buf)
         if type == PEER_ANNOUNCE:
             logging.info(
-                f"\r\nReceived PEER_ANNOUNCE from {self.get_debug_address()}")
+                f"Received PEER_ANNOUNCE from {self.get_debug_address()}")
             await self.__handle_peer_announce(buf)
         elif type == PEER_DISCOVERY:
             logging.info(
-                f"\r\nReceived PEER_DISCOVERY from {self.get_debug_address()}")
+                f"Received PEER_DISCOVERY from {self.get_debug_address()}")
             await self.__handle_peer_discovery(buf)
         elif type == PEER_OFFER:
             logging.info(
-                f"\r\nReceived PEER_OFFER from {self.get_debug_address()}")
+                f"Received PEER_OFFER from {self.get_debug_address()}")
             await self.__handle_peer_offer(buf)
         elif type == PEER_INFO:
             logging.info(f"Received PEER_INFO from {self.get_debug_address()}")
             self.__handle_peer_info(buf)
         else:
             logging.info(
-                "\r\nReceived message with unknown type {} from {}".format(
+                "Received message with unknown type {} from {}".format(
                     type, self.get_debug_address()))
 
     async def __handle_peer_announce(self, buf):
@@ -311,11 +314,11 @@ class Peer_connection:
         # check if we already know the p2p_listening_port of the other peer
         if self.peer_p2p_listening_port != None:
             warning = ("WARNING: received PEER INFO but already knew the"
-                       "p2p_listening_port!\r\nOld port: {}, new Port: {}")
+                       "p2p_listening_port!\nOld port: {}, new Port: {}")
             logging.warning(warning.format(self.peer_p2p_listening_port, port))
 
         # save new port
-        logging.info("Saving p2p_listening_port", port)
+        logging.info(f"Saving p2p_listening_port {port}")
         self.peer_p2p_listening_port = port
 
 
