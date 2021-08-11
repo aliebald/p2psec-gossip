@@ -2,6 +2,7 @@ import os
 import sys
 import argparse
 import asyncio
+import logging
 
 from modules.config import Config
 from modules.gossip import Gossip
@@ -30,17 +31,33 @@ def parse_arguments():
     return (path,)
 
 
+def setup_logger(level):
+    """Initiates the logger
+    Arguments:
+        - level: Logging level. Must be a valid level. 
+                 See https://docs.python.org/3/howto/logging.html for more info
+    """
+    # Add ".%(msecs)03d" after the time for ms
+    format = "%(asctime)s - %(levelname)s - %(message)s"
+    logging.basicConfig(level=level,
+                        format=format,
+                        datefmt="%H:%M:%S")
+
+
 async def main():
     # This script requires Python version 3.9 or newer to run
     if not sys.version_info >= (3, 9):
         raise EnvironmentError("Python version 3.9 or newer is required. "
                                f"(detected: {sys.version})")
-
     os.chdir(os.path.dirname(sys.argv[0]))
+
+    # Setup Logger. Change logging level here!
+    setup_logger(logging.DEBUG)
+
     (path,) = parse_arguments()
-    print("Starting gossip. Path: \"{}\"".format(path))
+    logging.info(f"Starting Gossip. Config path: \"{path}\"")
     config = Config(path)
-    config.print_config()
+    logging.info(config)
     await Gossip(config).run()
 
 

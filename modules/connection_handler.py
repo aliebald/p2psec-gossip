@@ -1,4 +1,5 @@
 import asyncio
+import logging
 
 
 async def connection_handler(host, port, on_connection_fnc):
@@ -15,7 +16,7 @@ async def connection_handler(host, port, on_connection_fnc):
                             Will pass the clientsocket as an argument.
     """
 
-    print("Opening Peer server at host: {}, port: {}".format(host, port))
+    logging.info(f"Opening Peer server at host: {host}, port: {port}")
     server = await asyncio.start_server(on_connection_fnc, host, port)
 
     async with server:

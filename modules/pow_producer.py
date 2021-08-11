@@ -2,6 +2,7 @@
 This module provides functions to find nonces as proof of work for specific
 packages
 """
+import logging
 import hashlib
 import time
 
@@ -20,13 +21,13 @@ def produce_pow_peer_offer(data):
     max = 2**64
     data_copy = bytearray(len(data))
     data_copy[:] = data
-    print("searching for nonce")
+    logging.debug("searching for nonce")
     for nonce in range(max):
         data_copy[12:20] = nonce.to_bytes(8, 'big')
         if valid_nonce_peer_offer(data_copy):
-            print("Found nonce after {} seconds".format(time.time() - start))
+            logging.debug(f"Found nonce after {time.time()-start} seconds")
             return data_copy
-    print("Failed to find nonce after {} seconds".format(time.time() - start))
+    logging.warning(f"Failed to find nonce after {time.time()-start} seconds")
     return None
 
 
