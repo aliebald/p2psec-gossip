@@ -5,6 +5,13 @@ This module provides the Config class.
 from configparser import ConfigParser
 
 
+def __check_cache_size(config):
+    """Checks if the cache_size is greather than 0"""
+    if config.cache_size <= 0:
+        raise KeyError(f"cache_size ({config.cache_size}) must be greater than"
+                       " 0")
+
+
 def __check_min_connections(config):
     """Checks if min_connections >= 0"""
     if config.min_connections < 0:
@@ -13,21 +20,35 @@ def __check_min_connections(config):
 
 
 def __check_max_connections(config):
-    """Checks if max_connections >= min_connections"""
+    """Checks if 
+    - max_connections > 0 
+    - max_connections >= min_connections
+    """
+    if config.max_connections <= 0:
+        raise KeyError(f"max_connections ({config.max_connections}) must be "
+                       "greater than 0")
+
     if config.max_connections < config.min_connections:
         raise KeyError(f"max_connections ({config.max_connections}) must be "
-                       "greater than or equal to min_connections "
-                       f"({config.min_connections})")
+                       "greater than 0 and greater than or equal to "
+                       f"min_connections ({config.min_connections})")
 
 
 def __check_degree(config):
-    """Checks if degree <= max_connections and degree <= min_connections)"""
+    """Checks if 
+    - degree <= max_connections
+    - degree <= min_connections
+    - degree > 0"""
     if config.degree > config.max_connections:
         raise KeyError(f"degree ({config.degree}) must be less than or equal "
                        f"to max_connections ({config.max_connections})")
+
     if config.degree > config.min_connections:
         raise KeyError(f"degree ({config.degree}) must be greater than or "
                        f"equal to min_connections ({config.min_connections})")
+
+    if config.degree < 0:
+        raise KeyError(f"degree ({config.degree}) must be greater than 0")
 
 
 def __check_search_cooldown(config):
@@ -48,6 +69,7 @@ config_config = {
         "cache_size": {
             "required": True,
             "type": int,
+            "checks": __check_cache_size
         },
         "degree": {
             "required": True,
