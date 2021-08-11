@@ -91,6 +91,11 @@ def __check_known_peers(config):
         return
 
     peers = config.known_peers.replace(" ", "").split(",")
+    # check for duplicates:
+    if len(peers) != len(set(peers)):
+        raise KeyError("known_peers must not contain duplicates."
+                       f"known_peers: {config.known_peers}")
+
     for peer in peers:
         if not __is_valid_ip(peer):
             raise KeyError(f"known_peers address ({peer}) is not in a valid "
