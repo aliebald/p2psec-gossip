@@ -15,7 +15,7 @@ import queue
 
 # FIFO Queue which will not add duplicates
 # Source: https://stackoverflow.com/a/16506527
-class __SetQueue(queue.Queue):
+class SetQueue(queue.Queue):
     # Use a set as a basis to avoid duplicates
     def _init(self, maxsize):
         self.queue = set()
@@ -55,7 +55,7 @@ class Gossip:
         #                          Key - Value
         # Subscriber list, Format: Int - List of Api_connections
         self.datasubs = {}
-        self.peer_announce_ids = __SetQueue(self.config.cache_size)
+        self.peer_announce_ids = SetQueue(self.config.cache_size)
         # Dictionary of open PEER_ANNOUNCEs;
         # Key: Message ID, Value: [data, API Subscribers]
         self.announces_to_verify = {}
@@ -180,6 +180,10 @@ class Gossip:
     async def print_api_debug(self):
         print("[API] connected apis: " + str(self.apis))
         print("[API] current subscribers: " + str(self.datasubs))
+        print("[API] current routing ids: " +
+              str(list(self.peer_announce_ids.queue)))
+        print("[API] current announces to verify: " +
+              str(self.announces_to_verify))
 
     async def add_subscriber(self, datatype, api):
         """Adds an Api_connection to the Subscriber dict (datasubs)
@@ -225,9 +229,15 @@ class Gossip:
         while self.peer_announce_ids.__contains__(packet_id):
             packet_id = randint(0, 2**64-1)
         # Save this id for routing loop prevention
-        self.__add_peer_announce_id(packet_id)
+        await self.__add_peer_announce_id(packet_id)
+
         # Choose degree peers randomly
-        peer_sample = sample(self.peers, self.config.degree)
+        # TODO: if peers < degree, choose all peers
+        try:
+            peer_sample = sample(self.peers, self.config.degree)
+        except ValueError:
+            peer_sample = []
+
         # send PEER_ANNOUNCE on each Peer_connection
         for peer in peer_sample:
             await peer.send_peer_announce(packet_id, ttl, dtype, data)
