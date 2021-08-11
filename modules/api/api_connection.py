@@ -111,7 +111,7 @@ class Api_connection:
                   ", GOSSIP_ANNOUNCE malformed")
             await self.gossip.close_api(self)
 
-        (size, mtype, ttl, dtype, data) = tmp
+        (ttl, dtype, data) = tmp
 
         await self.gossip.handle_gossip_announce(ttl, dtype, data)
         return
