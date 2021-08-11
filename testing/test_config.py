@@ -5,48 +5,69 @@ import os
 
 class Test_config(unittest.TestCase):
     def test_missing_degree(self):
+        # Check if an KeyError is raised when degree is missing
         generate_test_config(degree=None)
         self.__check_raises_valid_exception(KeyError)
 
     def test_missing_p2p_address(self):
+        # Check if an KeyError is raised when p2p_address is missing
         generate_test_config(p2p_address=None)
         self.__check_raises_valid_exception(KeyError)
 
     def test_missing_api_address(self):
+        # Check if an KeyError is raised when api_address is missing
         generate_test_config(api_address=None)
         self.__check_raises_valid_exception(KeyError)
 
     def test_missing_max_connections(self):
+        # Check if an KeyError is raised when max_connections is missing
         generate_test_config(max_connections=None)
         self.__check_raises_valid_exception(KeyError)
 
     def test_missing_min_connections(self):
+        # Check if an KeyError is raised when min_connections is missing
         generate_test_config(min_connections=None)
         self.__check_raises_valid_exception(KeyError)
 
     def test_missing_bootstrapper(self):
+        # Check if an KeyError is raised when bootstrapper is missing
         generate_test_config(bootstrapper=None)
         self.__check_raises_valid_exception(KeyError)
 
-    # def test_invalid_cache_size(self):
-    #     generate_test_config(cache_size=-10)
-    #     self.__check_raises_valid_exception(KeyError)
+    def test_invalid_cache_size(self):
+        # Check if an KeyError is raised when cache_size is negative
+        generate_test_config(cache_size=-10)
+        self.__check_raises_valid_exception(KeyError)
 
-    # def test_invalid_degree(self):
-    #     generate_test_config(degree=-10)
-    #     self.__check_raises_valid_exception(KeyError)
+        # Check if an KeyError is raised when cache_size = 0
+        generate_test_config(cache_size=0)
+        self.__check_raises_valid_exception(KeyError)
+
+    def test_invalid_degree(self):
+        # Check if an KeyError is raised when degree is negative
+        generate_test_config(degree=-10)
+        self.__check_raises_valid_exception(KeyError)
+
+        # Check if an KeyError is raised when degree = 0
+        generate_test_config(degree=0)
+        self.__check_raises_valid_exception(KeyError)
 
     def test_invalid_min_connections(self):
+        # Check if an KeyError is raised when min_connections is negative
         generate_test_config(min_connections=-10)
         self.__check_raises_valid_exception(KeyError)
 
     def test_invalid_max_connections(self):
-        # Test negative
+        # Check if an KeyError is raised when max_connections is negative
         generate_test_config(max_connections=-10)
         self.__check_raises_valid_exception(KeyError)
 
-        # Test max < min
+        # Check if an KeyError is raised when max_connections < min_connections
         generate_test_config(max_connections=10, min_connections=20)
+        self.__check_raises_valid_exception(KeyError)
+
+        # Check if an KeyError is raised when max_connections = 0
+        generate_test_config(max_connections=0)
         self.__check_raises_valid_exception(KeyError)
 
     def test_valid_no_except(self):
@@ -58,6 +79,9 @@ class Test_config(unittest.TestCase):
             self.fail("Config raised an Exception unexpectedly")
 
     def __check_raises_valid_exception(self, exception):
+        """Asserts that the initialization for the generated Config 
+        ("testconfig.ini") fails and raises the given exception with an message
+        """
         with self.assertRaises(exception) as cm:
             Config("testconfig.ini")
         # Test if an error message exists
