@@ -264,7 +264,7 @@ class Gossip:
                 # save message and subs: [ttl, dtype, data, api1, api2, ...]
                 self.announces_to_verify[packet_id] = [ttl, dtype, data]
                 self.announces_to_verify[packet_id].extend(
-                        self.datasubs.get(dtype))
+                    self.datasubs.get(dtype))
                 for sub in self.datasubs.get(dtype):
                     sub.send_gossip_notification(packet_id, dtype, data)
             else:
