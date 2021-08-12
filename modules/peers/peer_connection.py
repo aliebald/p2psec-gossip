@@ -8,7 +8,7 @@ import time
 from random import getrandbits
 
 from modules.pow_producer import produce_pow_peer_offer, valid_nonce_peer_offer
-from modules.peers.peer_packet_parser import (
+from modules.packet_parser import (
     PEER_ANNOUNCE,
     PEER_DISCOVERY,
     PEER_OFFER,
