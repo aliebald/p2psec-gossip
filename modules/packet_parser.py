@@ -13,6 +13,9 @@ PEER_ANNOUNCE = 504
 PEER_DISCOVERY = 505
 PEER_OFFER = 506
 PEER_INFO = 507
+PEER_CHALLENGE = 508
+PEER_VERIFICATION = 509
+PEER_VALIDATION = 510
 
 # struct formats for API packets
 # !! no data is included as size is variable
@@ -327,6 +330,11 @@ def parse_peer_info(buf):
         return None
 
 
+def parse_peer_challenge(buf): pass  # TODO Kevin
+def parse_peer_verification(buf): pass  # TODO Kevin
+def parse_peer_validation(buf): pass  # TODO Kevin
+
+
 def pack_peer_announce(id, ttl, data_type, data):
     """Packs a peer announce message as byte-object.
 
@@ -387,3 +395,8 @@ def pack_peer_info(p2p_listening_port):
     """
     buf = pack(FORMAT_PEER_INFO, 8, PEER_INFO, 0, p2p_listening_port)
     return buf
+
+
+def pack_peer_challenge(*todo_args): pass  # TODO Kevin
+def pack_peer_verification(*todo_args): pass  # TODO Kevin
+def pack_peer_validation(*todo_args): pass  # TODO Kevin
