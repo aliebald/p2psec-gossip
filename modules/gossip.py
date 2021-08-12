@@ -7,7 +7,28 @@ import asyncio
 
 from modules.peers.peer_connection import (
     Peer_connection, peer_connection_factory)
+from modules.api.api_connection import Api_connection
 from modules.connection_handler import connection_handler
+from random import (randint, sample)
+import queue
+
+
+# FIFO Queue which will not add duplicates
+# Source: https://stackoverflow.com/a/16506527
+class SetQueue(queue.Queue):
+    # Use a set as a basis to avoid duplicates
+    def _init(self, maxsize):
+        self.queue = set()
+
+    def _put(self, item):
+        self.queue.add(item)
+
+    def _get(self):
+        return self.queue.pop()
+
+    def __contains__(self, item):
+        with self.mutex:
+            return item in self.queue
 
 
 class Gossip:
@@ -17,6 +38,9 @@ class Gossip:
     Class variables:
     - config (Config) -- config object used for this instance of gossip
     - peers (Peer_connection List) -- Connected (active) peers
+    - apis (Api_connection List) -- connected APIs
+    - datasubs (int-[Api_connection] Dictionary) -- APIs subscribed to each
+                                                    datatype
     """
 
     def __init__(self, config):
@@ -27,14 +51,29 @@ class Gossip:
         print("gossip\r\n")
         self.config = config
         self.peers = []
+        self.apis = []
+        #                          Key - Value
+        # Subscriber list, Format: Int - List of Api_connections
+        self.datasubs = {}
+        self.peer_announce_ids = SetQueue(self.config.cache_size)
+        # Dictionary of open PEER_ANNOUNCEs;
+        # Key: Message ID, Value: [data, API Subscribers]
+        self.announces_to_verify = {}
 
     async def run(self):
         """Starts this gossip instance.
         Tries to connect to all known peers or connect to bootstrapping
-        service, if no peers where in the config. 
+        service, if no peers where in the config.
         Starts peer controll (responsible for maintaining degree many peers),
         peers and waits for new incoming connections.
         """
+        # start API connection handler
+        (api_host, api_port) = self.config.api_address.split(":")
+        asyncio.create_task(connection_handler(
+            api_host, int(api_port), self.__on_api_connection))
+        print("[API] started API connection handler on {}:{}"
+              .format(api_host, api_port))
+
         # connect to peers in config
         (_, p2p_listening_port) = self.config.p2p_address.split(":")
         if len(self.config.known_peers) > 0:
@@ -54,6 +93,12 @@ class Gossip:
         (host, port) = self.config.p2p_address.split(":")
         asyncio.create_task(await connection_handler(
             host, int(port), self.__on_peer_connection))
+
+    def __on_api_connection(self, reader, writer):
+        new_api = Api_connection(reader, writer, self)
+        print("New API connected", new_api.get_api_address())
+        self.apis.append(new_api)
+        asyncio.create_task(new_api.run())
 
     def __on_peer_connection(self, reader, writer):
         """Gets called when a new peer tries to connect.
@@ -102,7 +147,7 @@ class Gossip:
         addresses = []
         for peer in self.peers:
             addresses.append(peer.get_peer_p2p_listening_address())
-        return list(filter(lambda x: x != None, addresses))
+        return list(filter(lambda x: x is not None, addresses))
 
     async def close_peer(self, peer):
         """Removes a Peer_connection from the Peer_connection list and calls
@@ -131,3 +176,125 @@ class Gossip:
                     await peer.send_peer_discovery()
 
             await asyncio.sleep(self.config.search_cooldown)
+
+    async def print_api_debug(self):
+        print("[API] connected apis: " + str(self.apis))
+        print("[API] current subscribers: " + str(self.datasubs))
+        print("[API] current routing ids: " +
+              str(list(self.peer_announce_ids.queue)))
+        print("[API] current announces to verify: " +
+              str(self.announces_to_verify))
+
+    async def add_subscriber(self, datatype, api):
+        """Adds an Api_connection to the Subscriber dict (datasubs)
+        """
+        if datatype in self.datasubs:
+            temp = self.datasubs[datatype]
+            temp.append(api)
+            self.datasubs[datatype] = temp
+        else:
+            self.datasubs[datatype] = [api]
+
+        return
+
+    async def __remove_subscriber(self, api):
+        """Removes an Api_connection from the whole Subscriber dict (datasubs)
+        """
+        for key in self.datasubs:
+            if api in self.datasubs[key]:
+                self.datasubs[key].remove(api)
+        return
+
+    async def close_api(self, api):
+        """Removes an Api connection from:
+            - apis
+            - datasubs
+           and closes the socket"""
+        await self.__remove_subscriber(api)
+        if api in self.apis:
+            self.apis.remove(api)
+        # Close the socket
+        await api.close()
+        return
+
+    async def __add_peer_announce_id(self, packet_id):
+        if self.peer_announce_ids.full():
+            self.peer_announce_ids.get()
+        # duplicates wont be added as we use SetQueue
+        self.peer_announce_ids.put(packet_id)
+
+    async def handle_gossip_announce(self, ttl, dtype, data):
+        # Generate PEER_ANNOUNCE id
+        packet_id = randint(0, 2**64-1)
+        while self.peer_announce_ids.__contains__(packet_id):
+            packet_id = randint(0, 2**64-1)
+        # Save this id for routing loop prevention
+        await self.__add_peer_announce_id(packet_id)
+
+        # Choose degree peers randomly
+        # TODO: if peers < degree, choose all peers
+        try:
+            peer_sample = sample(self.peers, self.config.degree)
+        except ValueError:
+            peer_sample = []
+
+        # send PEER_ANNOUNCE on each Peer_connection
+        for peer in peer_sample:
+            await peer.send_peer_announce(packet_id, ttl, dtype, data)
+        return
+
+    async def handle_peer_announce(self, packet_id, ttl, dtype, data):
+        # routing loops: check if id is already in id list
+        if self.peer_announce_ids.__contains__(packet_id):
+            return
+
+        await self.__add_peer_announce_id(packet_id)
+        # TODO: ttl edge cases
+
+        if ttl == 1:  # ends here, no forwarding
+            if dtype in self.datasubs.keys():
+                for sub in self.datasubs.get(dtype):
+                    sub.send_gossip_notification(packet_id, dtype, data)
+            else:
+                return
+        else:
+            if ttl > 0:
+                ttl -= 1
+            if dtype in self.datasubs.keys():
+                # save message and subs: [ttl, dtype, data, api1, api2, ...]
+                self.announces_to_verify[packet_id] = [ttl, dtype, data]
+                self.announces_to_verify[packet_id].extend(
+                        self.datasubs.get(dtype))
+                for sub in self.datasubs.get(dtype):
+                    sub.send_gossip_notification(packet_id, dtype, data)
+            else:
+                self.__send_peer_announce_to_sample(packet_id, ttl,
+                                                    dtype, data)
+        return
+
+    async def handle_gossip_validation(self, msg_id, valid, api):
+        if valid:
+            if msg_id in self.announces_to_verify.keys():
+                self.announces_to_verify[msg_id].remove(api)
+                # check if we are the last to verify: only data and ttl remain
+                if len(self.announces_to_verify[msg_id]) == 2:
+                    # delete the key
+                    tmp_list = self.announces_to_verify.pop(msg_id, None)
+                    # tmp_list: [ttl, dtype, data]
+                    ttl = tmp_list[0]
+                    dtype = tmp_list[1]
+                    data = tmp_list[2]
+                    # forward
+                    self.__send_peer_announce_to_sample(msg_id, ttl,
+                                                        dtype, data)
+        else:
+            # delete the whole entry
+            self.announces_to_verify.pop(msg_id, None)
+        return
+
+    async def __send_peer_announce_to_sample(self, packet_id, ttl, dtype,
+                                             data):
+        peer_sample = sample(self.peers, self.config.degree)
+        for peer in peer_sample:
+            await peer.send_peer_announce(packet_id, ttl, dtype, data)
+        return

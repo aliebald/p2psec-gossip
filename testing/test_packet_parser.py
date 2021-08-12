@@ -12,13 +12,13 @@ class Test_header_funcs(unittest.TestCase):
         # correct packet
         test_packet = pack(pp.FORMAT_GOSSIP_ANNOUNCE+"H", 10, 500, 0, 0, 0, 0)
         self.assertEqual(pp.parse_gossip_announce(test_packet),
-                         (0, 0, 0, b'\x00\x00'),
+                         (0, 0, b'\x00\x00'),
                          "Gossip Announce parsed incorrectly")
 
         # correct packet: correct size, empty data
         test_packet = pack(pp.FORMAT_GOSSIP_ANNOUNCE, 8, 500, 0, 0, 0)
         self.assertEqual(pp.parse_gossip_announce(test_packet),
-                         (0, 0, 0, b''),
+                         (0, 0, b''),
                          "Empty data was not parsed correctly")
 
         # wrong packet: empty buffer (b'')

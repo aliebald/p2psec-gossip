@@ -57,15 +57,15 @@ def __check_size(buf):
 
 
 def parse_gossip_announce(buf):
-    """Parses a gossip_announce to a human-readable 6-tuple
+    """Checks the header, strips it and returns the body as a 3-tuple
        [!] Does not check for any correctness in the body fields!
 
        Arguments:
            buf -- packet as byte-object
 
        Returns:
-           tuple (size, type, ttl, res, datatype, data )
-           as    (int , int , int, int, int     , bytes)
+           tuple (ttl, datatype, data )
+           as    (int, int     , bytes)
 
            tuple (): Error"""
     # check header: size
@@ -77,7 +77,8 @@ def parse_gossip_announce(buf):
         data = (buf[8:],)
 
         if packet_no_data[1] == GOSSIP_ANNOUNCE:
-            return packet_no_data[2:] + data
+            #      ttl,                dtype,              data
+            return (packet_no_data[2], packet_no_data[4]) + data
         else:
             return ()
     except error:
