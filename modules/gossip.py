@@ -10,25 +10,7 @@ from modules.peers.peer_connection import (
 from modules.api.api_connection import Api_connection
 from modules.connection_handler import connection_handler
 from random import (randint, sample)
-import queue
-
-
-# FIFO Queue which will not add duplicates
-# Source: https://stackoverflow.com/a/16506527
-class SetQueue(queue.Queue):
-    # Use a set as a basis to avoid duplicates
-    def _init(self, maxsize):
-        self.queue = set()
-
-    def _put(self, item):
-        self.queue.add(item)
-
-    def _get(self):
-        return self.queue.pop()
-
-    def __contains__(self, item):
-        with self.mutex:
-            return item in self.queue
+from modules.util import SetQueue
 
 
 class Gossip:
@@ -226,7 +208,7 @@ class Gossip:
     async def handle_gossip_announce(self, ttl, dtype, data):
         # Generate PEER_ANNOUNCE id
         packet_id = randint(0, 2**64-1)
-        while self.peer_announce_ids.__contains__(packet_id):
+        while self.peer_announce_ids.contains(packet_id):
             packet_id = randint(0, 2**64-1)
         # Save this id for routing loop prevention
         await self.__add_peer_announce_id(packet_id)
@@ -245,7 +227,7 @@ class Gossip:
 
     async def handle_peer_announce(self, packet_id, ttl, dtype, data):
         # routing loops: check if id is already in id list
-        if self.peer_announce_ids.__contains__(packet_id):
+        if self.peer_announce_ids.contains(packet_id):
             return
 
         await self.__add_peer_announce_id(packet_id)
