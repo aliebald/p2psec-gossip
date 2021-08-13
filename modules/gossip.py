@@ -39,7 +39,7 @@ class Gossip:
         self.datasubs = {}
         self.peer_announce_ids = SetQueue(self.config.cache_size)
         # Dictionary of open PEER_ANNOUNCEs;
-        # Key: Message ID, Value: [data, API Subscribers]
+        # Key: Message ID, Value: [ttl, datatype, data, API Subscribers]
         self.announces_to_verify = {}
 
     async def run(self):
@@ -254,21 +254,21 @@ class Gossip:
             if dtype in self.datasubs.keys():
                 for sub in self.datasubs.get(dtype):
                     sub.send_gossip_notification(packet_id, dtype, data)
+                    return
             else:
                 return
+        if ttl > 0:
+            ttl -= 1
+        if dtype in self.datasubs.keys():
+            # save message and subs: [ttl, dtype, data, api1, api2, ...]
+            self.announces_to_verify[packet_id] = [ttl, dtype, data]
+            self.announces_to_verify[packet_id].extend(
+                self.datasubs.get(dtype))
+            for sub in self.datasubs.get(dtype):
+                sub.send_gossip_notification(packet_id, dtype, data)
         else:
-            if ttl > 0:
-                ttl -= 1
-            if dtype in self.datasubs.keys():
-                # save message and subs: [ttl, dtype, data, api1, api2, ...]
-                self.announces_to_verify[packet_id] = [ttl, dtype, data]
-                self.announces_to_verify[packet_id].extend(
-                    self.datasubs.get(dtype))
-                for sub in self.datasubs.get(dtype):
-                    sub.send_gossip_notification(packet_id, dtype, data)
-            else:
-                self.__send_peer_announce_to_sample(packet_id, ttl,
-                                                    dtype, data)
+            self.__send_peer_announce_to_sample(packet_id, ttl,
+                                                dtype, data)
         return
 
     async def handle_gossip_validation(self, msg_id, valid, api):
@@ -281,23 +281,24 @@ class Gossip:
            - if it was the last: send a PEER_ANNOUNCE as all have positively
              validated
         """
-        if valid:
-            if msg_id in self.announces_to_verify.keys():
-                self.announces_to_verify[msg_id].remove(api)
-                # check if we are the last to verify: only data and ttl remain
-                if len(self.announces_to_verify[msg_id]) == 2:
-                    # delete the key
-                    tmp_list = self.announces_to_verify.pop(msg_id, None)
-                    # tmp_list: [ttl, dtype, data]
-                    ttl = tmp_list[0]
-                    dtype = tmp_list[1]
-                    data = tmp_list[2]
-                    # forward
-                    self.__send_peer_announce_to_sample(msg_id, ttl,
-                                                        dtype, data)
-        else:
+        if not valid:
             # delete the whole entry
             self.announces_to_verify.pop(msg_id, None)
+            return
+
+        if msg_id in self.announces_to_verify.keys():
+            self.announces_to_verify[msg_id].remove(api)
+            # check if we are the last to verify: only data and ttl remain
+            if len(self.announces_to_verify[msg_id]) == 3:
+                # delete the key
+                tmp_list = self.announces_to_verify.pop(msg_id, None)
+                # tmp_list: [ttl, dtype, data]
+                ttl = tmp_list[0]
+                dtype = tmp_list[1]
+                data = tmp_list[2]
+                # forward
+                self.__send_peer_announce_to_sample(msg_id, ttl,
+                                                    dtype, data)
         return
 
     async def __send_peer_announce_to_sample(self, packet_id, ttl, dtype,
