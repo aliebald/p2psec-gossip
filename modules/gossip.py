@@ -169,6 +169,7 @@ class Gossip:
 
     async def add_subscriber(self, datatype, api):
         """Adds an Api_connection to the Subscriber dict (datasubs)
+           gets called after a GOSSIP_NOTIFY
         """
         if datatype in self.datasubs:
             temp = self.datasubs[datatype]
@@ -200,12 +201,19 @@ class Gossip:
         return
 
     async def __add_peer_announce_id(self, packet_id):
+        """Adds a packet/message id to the FIFO Queue to keep track of known
+           IDs to prevent routing loops"""
         if self.peer_announce_ids.full():
             self.peer_announce_ids.get()
         # duplicates wont be added as we use SetQueue
         self.peer_announce_ids.put(packet_id)
 
     async def handle_gossip_announce(self, ttl, dtype, data):
+        """Gets called upon arrival of a GOSSIP_ANNOUNCE
+           Performs several things:
+              - generate a packet id
+              - add it as a known id
+              - send a PEER_ANNOUNCE to a sample of degree peers"""
         # Generate PEER_ANNOUNCE id
         packet_id = randint(0, 2**64-1)
         while self.peer_announce_ids.contains(packet_id):
@@ -226,6 +234,15 @@ class Gossip:
         return
 
     async def handle_peer_announce(self, packet_id, ttl, dtype, data):
+        """Gets called upon arrival of a PEER_ANNOUNCE
+           Performs several things:
+              - drop if it is a known packet -> loop detected
+              - else add it as a known id
+              - act depending on the TTL: ends here, decrement ttl or infinite
+              - send it to out subscribers of this datatype
+              - if we want to forward it and all subs have to validate:
+                add it to the dictionary of to-be validated announces
+                'announces_to_verify'"""
         # routing loops: check if id is already in id list
         if self.peer_announce_ids.contains(packet_id):
             return
@@ -255,6 +272,15 @@ class Gossip:
         return
 
     async def handle_gossip_validation(self, msg_id, valid, api):
+        """Gets called upon arrival of a GOSSIP_VALIDATION;
+           - if the answer is negative, delete the announce packet from the
+             queue, it will never be sent.
+           - if the message ID is not in the to-be validated announces do
+             nothing (APIs are honest)
+           - delete this API from the validators
+           - if it was the last: send a PEER_ANNOUNCE as all have positively
+             validated
+        """
         if valid:
             if msg_id in self.announces_to_verify.keys():
                 self.announces_to_verify[msg_id].remove(api)
@@ -276,6 +302,8 @@ class Gossip:
 
     async def __send_peer_announce_to_sample(self, packet_id, ttl, dtype,
                                              data):
+        """Gets called if you want to send a PEER_ANNOUNCE to a sample
+           of currently connected peers."""
         peer_sample = sample(self.peers, self.config.degree)
         for peer in peer_sample:
             await peer.send_peer_announce(packet_id, ttl, dtype, data)
