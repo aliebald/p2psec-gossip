@@ -1,4 +1,5 @@
 """This module provides utility functions that don't fit elsewhere."""
+# TODO: move PoW Generator here
 
 import queue
 
