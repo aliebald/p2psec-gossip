@@ -28,6 +28,9 @@ FORMAT_PEER_ANNOUNCE = "!HHQBBH"
 FORMAT_PEER_DISCOVERY = "!HHQ"
 FORMAT_PEER_OFFER = "!HHQQ"
 FORMAT_PEER_INFO = "!HHHH"
+FORMAT_PEER_CHALLENGE = "!HHQ"
+FORMAT_PEER_VERIFICATION = "!HHQ"
+FORMAT_PEER_VALIDATION = "!HHHH"
 
 
 def __get_header_size(buf):
@@ -330,9 +333,62 @@ def parse_peer_info(buf):
         return None
 
 
-def parse_peer_challenge(buf): pass  # TODO Kevin
-def parse_peer_verification(buf): pass  # TODO Kevin
-def parse_peer_validation(buf): pass  # TODO Kevin
+def parse_peer_challenge(buf):
+    """Reads a PEER_CHALLENGE by checking the header and returning the
+       challenge
+
+    Arguments:
+    - buf (byte-object) -- packet
+
+    Returns:
+    - challenge (int)
+      or
+    - None (Error)"""
+
+    if not __check_size(buf):
+        return None
+    if not get_header_type(buf) == PEER_CHALLENGE:
+        return None
+    (_, _, challenge) = unpack(buf, FORMAT_PEER_CHALLENGE)
+    return int.from_bytes(challenge, "big")
+
+
+def parse_peer_verification(buf):
+    """Reads a PEER_VERIFICATION by checking the header and returning the
+       nonce
+
+    Arguments:
+    - buf (byte-object) -- packet
+
+    Returns:
+    - nonce (byte-object)
+      or
+    - None (Error)"""
+    if not __check_size(buf):
+        return None
+    if not get_header_type(buf) == PEER_VERIFICATION:
+        return None
+    (_, _, nonce) = unpack(buf, FORMAT_PEER_VERIFICATION)
+    return int.from_bytes(nonce, "big")
+
+
+def parse_peer_validation(buf):
+    """Reads a PEER_VALIDATION by checking the header and returning the
+       bit field as a boolean
+
+    Arguments:
+    - buf (byte-object) -- packet
+
+    Returns:
+    - valid (boolean)
+      or
+    - None (Error)"""
+    if not __check_size(buf):
+        return None
+    if not get_header_type(buf) == PEER_VALIDATION:
+        return None
+    (_, _, valid) = unpack(buf, FORMAT_GOSSIP_VALIDATION)
+    return valid == 1
 
 
 def pack_peer_announce(id, ttl, data_type, data):
@@ -397,6 +453,21 @@ def pack_peer_info(p2p_listening_port):
     return buf
 
 
-def pack_peer_challenge(*todo_args): pass  # TODO Kevin
+def pack_peer_challenge(challenge):
+    """Builds a PEER_CHALLENGE packet.
+    Arguments:
+        - challenge (int)
+    Returns:
+        - buf (byte-object b'...')
+          or
+        - None (Error, int too big)"""
+    if challenge > 18446744073709551615:  # (2**64)-1
+        return None
+    return pack(FORMAT_PEER_CHALLENGE, 12, PEER_CHALLENGE,
+                challenge.to_bytes(8, "big"))
+
+
 def pack_peer_verification(*todo_args): pass  # TODO Kevin
+
+
 def pack_peer_validation(*todo_args): pass  # TODO Kevin
