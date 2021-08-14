@@ -349,8 +349,8 @@ def parse_peer_challenge(buf):
         return None
     if not get_header_type(buf) == PEER_CHALLENGE:
         return None
-    (_, _, challenge) = unpack(buf, FORMAT_PEER_CHALLENGE)
-    return int.from_bytes(challenge, "big")
+    (_, _, challenge) = unpack(FORMAT_PEER_CHALLENGE, buf)
+    return challenge
 
 
 def parse_peer_verification(buf):
@@ -369,7 +369,7 @@ def parse_peer_verification(buf):
     if not get_header_type(buf) == PEER_VERIFICATION:
         return None
     (_, _, nonce) = unpack(buf, FORMAT_PEER_VERIFICATION)
-    return int.from_bytes(nonce, "big")
+    return nonce
 
 
 def parse_peer_validation(buf):
@@ -463,11 +463,30 @@ def pack_peer_challenge(challenge):
         - None (Error, int too big)"""
     if challenge > 18446744073709551615:  # (2**64)-1
         return None
-    return pack(FORMAT_PEER_CHALLENGE, 12, PEER_CHALLENGE,
-                challenge.to_bytes(8, "big"))
+    return pack(FORMAT_PEER_CHALLENGE, 12, PEER_CHALLENGE, challenge)
 
 
-def pack_peer_verification(*todo_args): pass  # TODO Kevin
+def pack_peer_verification(nonce):
+    """Builds a PEER_VERIFICATION packet.
+    Arguments:
+        - nonce (int)
+    Returns:
+        - buf (byte-object b'...')
+          or
+        - None (Error, int too big)"""
+    if nonce > 18446744073709551615:  # (2**64)-1
+        return None
+    return pack(FORMAT_PEER_VERIFICATION, 12, PEER_VERIFICATION, nonce)
 
 
-def pack_peer_validation(*todo_args): pass  # TODO Kevin
+def pack_peer_validation(valid):
+    """Builds a PEER_VALIDATION packet.
+    Arguments:
+        - valid (boolean)
+    Returns:
+        - buf (byte-object b'...')"""
+    if valid:
+        bit = 1
+    else:
+        bit = 0
+    return pack(FORMAT_PEER_VALIDATION, 8, PEER_VALIDATION, 0, bit)
