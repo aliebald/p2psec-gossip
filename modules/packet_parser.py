@@ -368,7 +368,7 @@ def parse_peer_verification(buf):
         return None
     if not get_header_type(buf) == PEER_VERIFICATION:
         return None
-    (_, _, nonce) = unpack(buf, FORMAT_PEER_VERIFICATION)
+    (_, _, nonce) = unpack(FORMAT_PEER_VERIFICATION, buf)
     return nonce
 
 
@@ -387,7 +387,7 @@ def parse_peer_validation(buf):
         return None
     if not get_header_type(buf) == PEER_VALIDATION:
         return None
-    (_, _, valid) = unpack(buf, FORMAT_GOSSIP_VALIDATION)
+    (_, _, _, valid) = unpack(FORMAT_PEER_VALIDATION, buf)
     return valid == 1
 
 
