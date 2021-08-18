@@ -2,6 +2,7 @@ import unittest
 # https://stackoverflow.com/questions/42890302/relative-paths-for-modules-in-python
 from context import packet_parser as pp
 from struct import pack
+from random import randint
 
 
 class Test_header_funcs(unittest.TestCase):
@@ -156,6 +157,29 @@ class Test_header_funcs(unittest.TestCase):
         test_packet = b''
         self.assertEqual(pp.get_header_type(test_packet),
                          -1, "empty buffer b'' should throw error")
+
+# ============================================================================
+# PEER MESSAGES
+    def test_parse_peer_challenge(self):
+        # correct packet
+        num = randint(0, (2**64)-1)
+        test_packet = pack(pp.FORMAT_PEER_CHALLENGE, 12, pp.PEER_CHALLENGE,
+                           num)
+        self.assertEqual(pp.parse_peer_challenge(test_packet), num)
+
+    def test_parse_peer_verification(self):
+        # correct packet
+        num = randint(0, (2**64)-1)
+        test_packet = pack(pp.FORMAT_PEER_VERIFICATION, 12,
+                           pp.PEER_VERIFICATION, num)
+        self.assertEqual(pp.parse_peer_verification(test_packet), num)
+
+    def test_parse_peer_validation(self):
+        # correct packet
+        test_packet = pack(pp.FORMAT_PEER_VALIDATION, 8,
+                           pp.PEER_VALIDATION, 0, True)
+        self.assertEqual(pp.parse_peer_validation(test_packet), True)
+# ============================================================================
 
 
 if __name__ == '__main__':
