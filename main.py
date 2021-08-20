@@ -34,7 +34,7 @@ def parse_arguments():
 def setup_logger(level):
     """Initiates the logger
     Arguments:
-        - level: Logging level. Must be a valid level. 
+        - level: Logging level. Must be a valid level.
                  See https://docs.python.org/3/howto/logging.html for more info
     """
     # Add ".%(msecs)03d" after the time for ms
@@ -49,7 +49,7 @@ async def main():
     if not sys.version_info >= (3, 9):
         raise EnvironmentError("Python version 3.9 or newer is required. "
                                f"(detected: {sys.version})")
-    os.chdir(os.path.dirname(sys.argv[0]))
+    os.chdir(os.path.dirname(os.path.abspath(sys.argv[0])))
 
     # Setup Logger. Change logging level here!
     setup_logger(logging.DEBUG)
