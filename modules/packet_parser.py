@@ -204,7 +204,7 @@ def build_gossip_notification(msg_id, datatype, data):
     """Builds a GOSSIP_NOTIFICATION packet as a byte object from arguments
 
     Arguments:
-        int   , int     , String
+        int   , int     , byte
         msg_id, datatype, data
 
     Returns:
@@ -216,7 +216,8 @@ def build_gossip_notification(msg_id, datatype, data):
     elif datatype >= 2**16 or msg_id < 0:
         return None
 
-    data_bytes = bytes(data, 'utf-8')
+    # data_bytes = bytes(data, 'utf-8')
+    data_bytes = data
     size = 8 + len(data_bytes)
     if size >= 2**16:
         return None
