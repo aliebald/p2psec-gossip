@@ -7,7 +7,7 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
     # Connect as peer
     s.connect(('127.0.0.1', 6001))
     # Send PEER_ANNOUNCE
-    s.sendall(pp.pack_peer_announce(1, 2, 1, ""))
+    s.sendall(pp.pack_peer_announce(1, 2, 1, b''))
     # Wait
     while True:
         sleep(1)
