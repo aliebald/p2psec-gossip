@@ -172,7 +172,7 @@ class Gossip:
         """Adds an Api_connection to the Subscriber dict (datasubs)
            gets called after a GOSSIP_NOTIFY
         """
-        if datatype in self.datasubs:
+        if datatype in self.datasubs.keys():
             temp = self.datasubs[datatype]
             temp.append(api)
             self.datasubs[datatype] = temp
@@ -249,27 +249,26 @@ class Gossip:
             return
 
         await self.__add_peer_announce_id(packet_id)
-        # TODO: ttl edge cases
 
         if ttl == 1:  # ends here, no forwarding
             if dtype in self.datasubs.keys():
                 for sub in self.datasubs.get(dtype):
                     sub.send_gossip_notification(packet_id, dtype, data)
-                    return
-            else:
-                return
+            return
+
         if ttl > 0:
             ttl -= 1
+
         if dtype in self.datasubs.keys():
             # save message and subs as tuple: (ttl, dtype, data, [datasubs])
             # and add to dictionary
             self.announces_to_verify[packet_id] = \
                 (ttl, dtype, data, self.datasubs.get(dtype))
             for sub in self.datasubs.get(dtype):
-                sub.send_gossip_notification(packet_id, dtype, data)
-        else:
-            self.__send_peer_announce_to_sample(packet_id, ttl,
-                                                dtype, data)
+                await sub.send_gossip_notification(packet_id, dtype, data)
+
+        # no subscriber for this datatype
+        # Spezification 4.2.2.: Do not propagate further.
         return
 
     async def handle_gossip_validation(self, msg_id, valid, api):
@@ -300,8 +299,8 @@ class Gossip:
                 (ttl, dtype, data, _) = \
                     self.announces_to_verify.pop(msg_id, None)
                 # forward
-                self.__send_peer_announce_to_sample(msg_id, ttl,
-                                                    dtype, data)
+                await self.__send_peer_announce_to_sample(msg_id, ttl,
+                                                          dtype, data)
             return
         except ValueError:  # API is not in validator list
             return
@@ -310,7 +309,10 @@ class Gossip:
                                              data):
         """Gets called if you want to send a PEER_ANNOUNCE to a sample
            of currently connected peers."""
-        peer_sample = sample(self.peers, self.config.degree)
+        if len(self.peers) < self.config.degree:
+            peer_sample = self.peers
+        else:
+            peer_sample = sample(self.peers, self.config.degree)
         for peer in peer_sample:
             await peer.send_peer_announce(packet_id, ttl, dtype, data)
         return
