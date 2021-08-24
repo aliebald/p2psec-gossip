@@ -4,6 +4,7 @@ TODO: Description of gossip functionality?
 """
 
 import asyncio
+import logging
 
 from modules.peers.peer_connection import (
     Peer_connection, peer_connection_factory)
@@ -63,8 +64,12 @@ class Gossip:
             self.peers = await peer_connection_factory(
                 self.config.known_peers, self, int(p2p_listening_port))
 
-        # TODO Ask bootstrapping service for peers if no peers where in the
-        #      config or all peers from config where unreachable.
+        # No known_peers in config or all where unreachable
+        # -> Connect to bootstrapping node
+        if len(self.peers) == 0:
+            logging.debug("Connecting to bootstrapping node")
+            self.peers = await peer_connection_factory(
+                [self.config.bootstrapper], self, int(p2p_listening_port))
 
         asyncio.create_task(self.__run_peer_control())
 
