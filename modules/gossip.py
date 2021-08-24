@@ -74,8 +74,7 @@ class Gossip:
 
         # start peer connection handler
         (host, port) = self.config.p2p_address.split(":")
-        asyncio.create_task(await connection_handler(
-            host, int(port), self.__on_peer_connection))
+        await connection_handler(host, int(port), self.__on_peer_connection)
 
     def __on_api_connection(self, reader, writer):
         new_api = Api_connection(reader, writer, self)
