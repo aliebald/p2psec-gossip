@@ -31,7 +31,6 @@ class Gossip:
         Arguments:
         - config (Config) -- config class object
         """
-        print("gossip\r\n")
         self.config = config
         self.peers = []
         self.apis = []
@@ -98,7 +97,7 @@ class Gossip:
         """
         # TODO implement. The current implementation is rather rudimentary
         new_peer = Peer_connection(reader, writer, self)
-        print("New peer connected", new_peer.get_debug_address())
+        logging.info(f"New peer connected: {new_peer.get_debug_address()}")
         self.peers.append(new_peer)
         asyncio.create_task(new_peer.run())
 
@@ -114,8 +113,8 @@ class Gossip:
         connected = self.get_peer_addresses()
         candidates = list(filter(lambda x: x not in connected, peer_addresses))
 
-        print("Offer contained:", peer_addresses)
-        print("Connect to:", candidates)
+        logging.info("Offer contained:", peer_addresses)
+        logging.info("Connect to:", candidates)
 
         # Open a connection to new Peers
         if len(candidates) > 0:
@@ -149,19 +148,19 @@ class Gossip:
         self.peers = list(filter(lambda p: p != peer, self.peers))
         await peer.close()
 
-        print("Connected peers: {}\r\n".format(self.get_peer_addresses()))
+        logging.info(f"Connected peers: {self.get_peer_addresses()}\r\n")
 
     async def __run_peer_control(self):
         """Ensures that self.peers has at least self.config.degree many peers
         """
         while True:
             if len(self.peers) < self.config.degree:
-                print("\r\nLooking for new Peers")
-                print("Connected peers: {}".format(self.get_peer_addresses()))
+                logging.info("\r\nLooking for new Peers")
+                logging.info(f"Connected peers: {self.get_peer_addresses()}")
                 # Send PeerDiscovery
                 for peer in self.peers:
-                    print("  sending peer discovery to",
-                          peer.get_debug_address())
+                    logging.info("sending peer discovery to: {}".format(
+                        peer.get_debug_address()))
                     await peer.send_peer_discovery()
 
             await asyncio.sleep(self.config.search_cooldown)
