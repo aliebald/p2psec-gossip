@@ -51,16 +51,11 @@ class Gossip:
         Starts peer controll (responsible for maintaining degree many peers),
         peers and waits for new incoming connections.
         """
-        # start API connection handler
-        (api_host, api_port) = self.config.api_address.split(":")
-        asyncio.create_task(connection_handler(
-            api_host, int(api_port), self.__on_api_connection))
-        print("[API] started API connection handler on {}:{}"
-              .format(api_host, api_port))
-
         # connect to peers in config
         (_, p2p_listening_port) = self.config.p2p_address.split(":")
-        if len(self.config.known_peers) > 0:
+        num_known_peers = len(self.config.known_peers)
+        if num_known_peers > 0:
+            logging.debug(f"Connecting to {num_known_peers} known peers")
             self.peers = await peer_connection_factory(
                 self.config.known_peers, self, int(p2p_listening_port))
 
@@ -70,6 +65,13 @@ class Gossip:
             logging.debug("Connecting to bootstrapping node")
             self.peers = await peer_connection_factory(
                 [self.config.bootstrapper], self, int(p2p_listening_port))
+
+        # start API connection handler
+        (api_host, api_port) = self.config.api_address.split(":")
+        asyncio.create_task(connection_handler(
+            api_host, int(api_port), self.__on_api_connection))
+        logging.debug("[API] started API connection handler on {}:{}"
+                      .format(api_host, api_port))
 
         asyncio.create_task(self.__run_peer_control())
 
