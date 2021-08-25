@@ -61,8 +61,8 @@ class Api_connection:
                 size_bytes = await self.__reader.read(2)
                 size = int.from_bytes(size_bytes, "big")
                 buf = size_bytes + await self.__reader.read(size-2)
-                logging.debug(f'[API] Packet arrived: \n \
-                                {hexdump.hexdump(buf)}')
+                logging.debug(f"[API] Packet arrived: \n \
+                                {hexdump.hexdump(buf)}")
             except ConnectionError:
                 await self.gossip.close_api(self)
                 return
@@ -73,7 +73,7 @@ class Api_connection:
         Gossip.close_api() should be called preferably, since it also removes
         the API from the API list and datatype dictionary."""
 
-        logging.info(f'[API] Connection to {self.get_api_address} closed')
+        logging.info(f"[API] Connection to {self.get_api_address} closed")
         try:
             self.__writer.close()
             await self.__writer.wait_closed()
@@ -88,7 +88,7 @@ class Api_connection:
         - get_own_address()
         """
         # TODO returns None on error
-        (host, port) = self.__writer.get_extra_info('peername')
+        (host, port) = self.__writer.get_extra_info("peername")
         address = "{}:{}".format(host, port)
         return address
 
@@ -99,15 +99,15 @@ class Api_connection:
         See also:
         - get_api_address()
         """
-        (host, port) = self.__writer.get_extra_info('sockname')
+        (host, port) = self.__writer.get_extra_info("sockname")
         address = "{}:{}".format(host, port)
         return address
 
     async def __handle_gossip_announce(self, buf):
         tmp = parse_gossip_announce(buf)
         if tmp == ():
-            logging.info(f'[API] Disconnecting API user {self} - \
-                           GOSSIP_ANNOUNCE malformed')
+            logging.info(f"[API] Disconnecting API user {self} - \
+                           GOSSIP_ANNOUNCE malformed")
             await self.gossip.close_api(self)
 
         (ttl, dtype, data) = tmp
@@ -121,7 +121,7 @@ class Api_connection:
         (datatype) = parse_gossip_notify(buf)
         await self.gossip.add_subscriber(datatype, self)
 
-        logging.debug(f'[API] {self} subscribed to datatype {datatype}')
+        logging.debug(f"[API] {self} subscribed to datatype {datatype}")
         return
 
     async def __handle_gossip_validation(self, buf):
@@ -141,21 +141,21 @@ class Api_connection:
         """
         mtype = get_header_type(buf)
         if mtype == GOSSIP_ANNOUNCE:
-            logging.info(f'[API] Received GOSSIP_ANNOUNCE from \
-                           {self.get_api_address()}')
+            logging.info(f"[API] Received GOSSIP_ANNOUNCE from \
+                           {self.get_api_address()}")
             await self.__handle_gossip_announce(buf)
         elif mtype == GOSSIP_NOTIFY:
-            logging.info(f'[API] Received GOSSIP_NOTIFY from \
-                           {self.get_api_address()}')
+            logging.info(f"[API] Received GOSSIP_NOTIFY from \
+                           {self.get_api_address()}")
             await self.__handle_gossip_notify(buf)
         elif mtype == GOSSIP_VALIDATION:
-            logging.info(f'[API] Received GOSSIP_VALIDATION from \
-                           {self.get_api_address()}')
+            logging.info(f"[API] Received GOSSIP_VALIDATION from \
+                           {self.get_api_address()}")
             await self.__handle_gossip_validation(buf)
         else:
-            logging.info(f'[API] Received message with unknown type {mtype} \
+            logging.info(f"[API] Received message with unknown type {mtype} \
                            from {self.get_api_address()} \n \
-                           [API] Disconnecting API user, wrong message')
+                           [API] Disconnecting API user, wrong message")
             await self.gossip.close_api(self)
         # Debug
         await self.gossip.print_api_debug()
@@ -163,5 +163,5 @@ class Api_connection:
 
     async def send_gossip_notification(self, msg_id, dtype, data):
         buf = build_gossip_notification(msg_id, dtype, data)
-        logging.info(f'[API] Sending GOSSIP_ANNOUNCE to {self}')
+        logging.info(f"[API] Sending GOSSIP_ANNOUNCE to {self}")
         self.__writer.write(buf)
