@@ -163,5 +163,5 @@ class Api_connection:
 
     async def send_gossip_notification(self, msg_id, dtype, data):
         buf = build_gossip_notification(msg_id, dtype, data)
-        logging.info(f"[API] Sending GOSSIP_ANNOUNCE to {self}")
+        logging.info(f"[API] Sending GOSSIP_NOTIFICATION to {self}")
         self.__writer.write(buf)
