@@ -292,30 +292,32 @@ class Gossip:
             return
 
         if msg_id not in self.announces_to_verify.keys():
+            logging.debug("[API] Message ID of GOSSIP VALIDATION is " +
+                          "currently not being validated!")
+            return
+        if api not in self.announces_to_verify[msg_id][4]:
+            logging.debug("[API] Sender {api} of GOSSIP VALIDATION is " +
+                          "no validator!")
             return
 
-        try:
-            # remove this api from the validators of this message id
-            self.announces_to_verify[msg_id][4].remove(api)
+        # remove this api from the validators of this message id
+        self.announces_to_verify[msg_id][4].remove(api)
 
-            # check if we are the last to verify
-            # if yes send PEER_ANNOUNCE to peer sample
-            if len(self.announces_to_verify[msg_id][4]) == 0:
-                (ttl, dtype, data, peer, _) = \
-                    self.announces_to_verify.pop(msg_id, None)
-                peer_sample = await self.__get_peer_announce_sample(
-                    msg_id, ttl, dtype, data)
-                # remove original sender from sample
-                if peer in peer_sample:
-                    peer_sample.remove(peer)
+        # check if we are the last to verify
+        # if yes send PEER_ANNOUNCE to peer sample
+        if len(self.announces_to_verify[msg_id][4]) == 0:
+            (ttl, dtype, data, peer, _) = \
+                self.announces_to_verify.pop(msg_id, None)
+            peer_sample = await self.__get_peer_announce_sample(
+                msg_id, ttl, dtype, data)
+            # remove original sender from sample
+            if peer in peer_sample:
+                peer_sample.remove(peer)
 
-                # forward
-                for peer in peer_sample:
-                    await peer.send_peer_announce(msg_id, ttl, dtype, data)
-                return
-            return
-        except ValueError:  # API is not in validator list
-            return
+            # forward
+            for peer in peer_sample:
+                await peer.send_peer_announce(msg_id, ttl, dtype, data)
+        return
 
     async def __get_peer_announce_sample(self, packet_id, ttl, dtype, data):
         """Gets called if you want to send a PEER_ANNOUNCE to a sample
