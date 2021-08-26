@@ -61,8 +61,8 @@ class Api_connection:
                 size_bytes = await self.__reader.read(2)
                 size = int.from_bytes(size_bytes, "big")
                 buf = size_bytes + await self.__reader.read(size-2)
-                logging.debug(f"[API] Packet arrived: \n \
-                                {hexdump.hexdump(buf)}")
+                logging.debug("[API] Packet arrived:\n       " +
+                              f"{hexdump.dump(buf)}")
             except ConnectionError:
                 await self.gossip.close_api(self)
                 return
@@ -106,8 +106,8 @@ class Api_connection:
     async def __handle_gossip_announce(self, buf):
         tmp = parse_gossip_announce(buf)
         if tmp == ():
-            logging.info(f"[API] Disconnecting API user {self} - \
-                           GOSSIP_ANNOUNCE malformed")
+            logging.info(f"[API] Disconnecting API user {self} -" +
+                         "GOSSIP_ANNOUNCE malformed")
             await self.gossip.close_api(self)
 
         (ttl, dtype, data) = tmp
@@ -141,21 +141,21 @@ class Api_connection:
         """
         mtype = get_header_type(buf)
         if mtype == GOSSIP_ANNOUNCE:
-            logging.info(f"[API] Received GOSSIP_ANNOUNCE from \
-                           {self.get_api_address()}")
+            logging.info("[API] Received GOSSIP_ANNOUNCE from " +
+                         f"{self.get_api_address()}")
             await self.__handle_gossip_announce(buf)
         elif mtype == GOSSIP_NOTIFY:
-            logging.info(f"[API] Received GOSSIP_NOTIFY from \
-                           {self.get_api_address()}")
+            logging.info("[API] Received GOSSIP_NOTIFY from " +
+                         f"{self.get_api_address()}")
             await self.__handle_gossip_notify(buf)
         elif mtype == GOSSIP_VALIDATION:
-            logging.info(f"[API] Received GOSSIP_VALIDATION from \
-                           {self.get_api_address()}")
+            logging.info("[API] Received GOSSIP_VALIDATION from " +
+                         f"{self.get_api_address()}")
             await self.__handle_gossip_validation(buf)
         else:
-            logging.info(f"[API] Received message with unknown type {mtype} \
-                           from {self.get_api_address()} \n \
-                           [API] Disconnecting API user, wrong message")
+            logging.info(f"[API] Received message with unknown type {mtype} " +
+                         f"from {self.get_api_address()}\n" +
+                         "[API] Disconnecting API user, wrong message")
             await self.gossip.close_api(self)
         # Debug
         await self.gossip.print_api_debug()
