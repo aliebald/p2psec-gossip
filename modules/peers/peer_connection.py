@@ -85,7 +85,7 @@ class Peer_connection:
         """Closes the connection to the peer.
         Gossip.close_peer() should be called preferably, since it also removes 
         the peer from the peer list."""
-        logging.info(f"Connection to {self.get_debug_address()} closed")
+        logging.info(f"[PEER] Connection to {self.get_debug_address()} closed")
         try:
             self.__writer.close()
             await self.__writer.wait_closed()
@@ -153,15 +153,16 @@ class Peer_connection:
     async def send_peer_discovery(self):
         """Sends a peer discovery message."""
         message = pack_peer_discovery(self.__generate_challenge())
-        logging.info(f"Sending PEER DISCOVERY to {self.get_debug_address()}\n")
+        logging.info("[PEER] Sending PEER DISCOVERY to" +
+                     f"{self.get_debug_address()}\n")
         await self.__send(message)
 
     async def send_peer_announce(self, id, ttl, data_type, data):
         """Sends a peer announce message. For documentation of parameters, see 
         the project documentation"""
         message = pack_peer_announce(id, ttl, data_type, data)
-        logging.info(f"Sending PEER ANNOUNCE with id: {id}, ttl: {ttl} and "
-                     f" data type: {data_type}")
+        logging.info(f"[PEER] Sending PEER ANNOUNCE with id: {id} " + 
+                     f"ttl: {ttl}and data type: {data_type}")
         await self.__send(message)
 
     async def __send_peer_offer(self, challenge):
@@ -177,17 +178,19 @@ class Peer_connection:
 
         # Abort if we do not know any other peers
         if len(addresses) == 0:
-            logging.info("No other peers connected, do not send peer offer.")
+            logging.debug("[PEER] No other peers connected, do not send " +
+                          "PEER OFFER.")
             return
 
         # pack peer offer and figure out a valid nonce
         message = pack_peer_offer(challenge, 0, addresses)
         message = produce_pow_peer_offer(message)
         if message == None:
-            logging.warning("Failed to find valid nonce for peer offer!")
+            logging.warning("[PEER] Failed to find valid nonce for "+
+                            "PEER OFFER!")
             return
 
-        logging.info(f"Sending PEER OFFER with peers: {addresses}\n")
+        logging.info(f"[PEER] Sending PEER OFFER with peers: {addresses}\n")
         await self.__send(message)
 
     async def __send(self, message):
@@ -231,26 +234,27 @@ class Peer_connection:
         """
         type = get_header_type(buf)
         if type == PEER_ANNOUNCE:
-            logging.info(
-                f"Received PEER_ANNOUNCE from {self.get_debug_address()}")
+            logging.info("[PEER] Received PEER_ANNOUNCE from" +
+                         f"{self.get_debug_address()}")
             await self.__handle_peer_announce(buf)
         elif type == PEER_DISCOVERY:
-            logging.info(
-                f"Received PEER_DISCOVERY from {self.get_debug_address()}")
+            logging.info("[PEER] Received PEER_DISCOVERY from" +
+                         f"{self.get_debug_address()}")
             await self.__handle_peer_discovery(buf)
         elif type == PEER_OFFER:
-            logging.info(
-                f"Received PEER_OFFER from {self.get_debug_address()}")
+            logging.info("[PEER] Received PEER_OFFER from" +
+                         f"{self.get_debug_address()}")
             await self.__handle_peer_offer(buf)
         elif type == PEER_INFO:
-            logging.info(f"Received PEER_INFO from {self.get_debug_address()}")
+            logging.info("[PEER] Received PEER_INFO from" +
+                         f"{self.get_debug_address()}")
             self.__handle_peer_info(buf)
         else:
             logging.info(
-                "Received message with unknown type {} from {}".format(
+                "[PEER] Received message with unknown type {} from {}".format(
                     type, self.get_debug_address()))
             await self.gossip.close_peer(self)
-        await self.gossip.print_api_debug()
+        await self.gossip.print_peer_debug()
 
     async def __handle_peer_announce(self, buf):
         """Handles a peer announce message and calls __send_peer_offer() to
@@ -297,17 +301,17 @@ class Peer_connection:
         (size, type, challenge, nonce, data) = msg
         # Check for invalid challenge
         if not self.__check_challenge(challenge):
-            logging.warning("Received invalid challenge in peer offer")
+            logging.warning("[PEER] Received invalid challenge in peer offer")
             return
 
         # Check nonce
         if not valid_nonce_peer_offer(buf):
-            logging.warning("Received invalid nonce in peer offer")
+            logging.warning("[PEER] Received invalid nonce in peer offer")
             return
         # check if the offer contains our own address
         p2p_address = self.gossip.config.p2p_address
         if p2p_address in data:
-            logging.warning("Own p2p address found in peer offer!")
+            logging.warning("[PEER] Own p2p address found in peer offer!")
             data = list(filter(lambda ip: ip != p2p_address, data))
 
         # save data / pass it to gossip
@@ -327,12 +331,12 @@ class Peer_connection:
 
         # check if we already know the p2p_listening_port of the other peer
         if self.peer_p2p_listening_port != None:
-            warning = ("WARNING: received PEER INFO but already knew the"
-                       "p2p_listening_port!\nOld port: {}, new Port: {}")
+            warning = ("[PEER] WARNING: received PEER INFO but already knew"
+                       "the p2p_listening_port!\nOld port: {}, new Port: {}")
             logging.warning(warning.format(self.peer_p2p_listening_port, port))
 
         # save new port
-        logging.info(f"Saving p2p_listening_port {port}")
+        logging.debug(f"[PEER] Saving p2p_listening_port {port}")
         self.peer_p2p_listening_port = port
 
 
@@ -379,12 +383,12 @@ async def __connect_peer(address, gossip, p2p_listening_port):
         Otherwise a new Peer_connection instance.
     """
     (ip, port) = address.split(":")
-    logging.info("Connecting to ip: {}, port: {}".format(ip, port))
+    logging.info("[PEER] Connecting to ip: {}, port: {}".format(ip, port))
     try:
         reader, writer = await asyncio.open_connection(ip, int(port))
     except ConnectionRefusedError:
         logging.warning(
-            "Failed to connect to ip: {}, port: {}".format(ip, port))
+            "[PEER] Failed to connect to ip: {}, port: {}".format(ip, port))
         return None
 
     await __send_peer_info(writer, p2p_listening_port)
@@ -401,7 +405,7 @@ async def __send_peer_info(writer, p2p_listening_port):
       at
     """
     info_packet = pack_peer_info(p2p_listening_port)
-    logging.info("Sending PEER INFO with p2p port {} to {}".format(
+    logging.info("[PEER] Sending PEER INFO with p2p port {} to {}".format(
         p2p_listening_port, writer.get_extra_info("peername")))
     writer.write(info_packet)
     await writer.drain()

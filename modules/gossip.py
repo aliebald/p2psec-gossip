@@ -31,7 +31,6 @@ class Gossip:
         Arguments:
         - config (Config) -- config class object
         """
-        print("gossip\r\n")
         self.config = config
         self.peers = []
         self.apis = []
@@ -81,7 +80,7 @@ class Gossip:
 
     def __on_api_connection(self, reader, writer):
         new_api = Api_connection(reader, writer, self)
-        logging.info(f"New API connected: {new_api.get_api_address()}")
+        logging.info(f"[API] New API connected: {new_api.get_api_address()}")
         self.apis.append(new_api)
         asyncio.create_task(new_api.run())
 
@@ -110,8 +109,8 @@ class Gossip:
         connected = self.get_peer_addresses()
         candidates = list(filter(lambda x: x not in connected, peer_addresses))
 
-        print("Offer contained:", peer_addresses)
-        print("Connect to:", candidates)
+        logging.debug(f"[PEER] Offer contained: {peer_addresses}")
+        logging.debug(f"[PEER] Connect to: {candidates}")
 
         # Open a connection to new Peers
         if len(candidates) > 0:
@@ -145,22 +144,26 @@ class Gossip:
         self.peers = list(filter(lambda p: p != peer, self.peers))
         await peer.close()
 
-        logging.debug(f"Connected peers: {self.get_peer_addresses()}\r\n")
+        logging.debug(f"[PEER] Connected peers: " +
+                      f"{self.get_peer_addresses()}\r\n")
 
     async def __run_peer_control(self):
         """Ensures that self.peers has at least self.config.degree many peers
         """
         while True:
             if len(self.peers) < self.config.degree:
-                print("\r\nLooking for new Peers")
-                print("Connected peers: {}".format(self.get_peer_addresses()))
+                logging.info("\r\nLooking for new Peers")
+                logging.info(f"Connected peers: {self.get_peer_addresses}")
                 # Send PeerDiscovery
                 for peer in self.peers:
-                    print("  sending peer discovery to",
-                          peer.get_debug_address())
+                    logging.debug("  sending peer discovery to" +
+                                  f"{peer.get_debug_address}")
                     await peer.send_peer_discovery()
 
             await asyncio.sleep(self.config.search_cooldown)
+
+    async def print_peer_debug(self):
+        logging.debug(f"[PEER] connected peers: {self.peers}")
 
     async def print_api_debug(self):
         logging.debug(f"[API] connected apis {self.apis}")
