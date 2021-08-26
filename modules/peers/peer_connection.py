@@ -75,7 +75,9 @@ class Peer_connection:
         connection is closed"""
         while True:
             try:
-                buf = await self.__reader.read(4096)  # TODO buffersize?
+                size_bytes = await self.__reader.read(2)
+                size = int.from_bytes(size_bytes, "big")
+                buf = size_bytes + await self.__reader.read(size-2)
             except ConnectionError:
                 await self.gossip.close_peer(self)
                 return
