@@ -4,6 +4,7 @@ TODO: Description of gossip functionality?
 """
 
 import asyncio
+import logging
 
 from modules.peers.peer_connection import (
     Peer_connection, peer_connection_factory)
@@ -55,8 +56,8 @@ class Gossip:
         (api_host, api_port) = self.config.api_address.split(":")
         asyncio.create_task(connection_handler(
             api_host, int(api_port), self.__on_api_connection))
-        print("[API] started API connection handler on {}:{}"
-              .format(api_host, api_port))
+        logging.debug("[API] started API connection handler on {}:{}"
+                      .format(api_host, api_port))
 
         # connect to peers in config
         (_, p2p_listening_port) = self.config.p2p_address.split(":")
@@ -80,7 +81,7 @@ class Gossip:
 
     def __on_api_connection(self, reader, writer):
         new_api = Api_connection(reader, writer, self)
-        print("New API connected", new_api.get_api_address())
+        logging.info(f"New API connected: {new_api.get_api_address()}")
         self.apis.append(new_api)
         asyncio.create_task(new_api.run())
 
@@ -93,7 +94,7 @@ class Gossip:
         """
         # TODO implement. The current implementation is rather rudimentary
         new_peer = Peer_connection(reader, writer, self)
-        print("New peer connected", new_peer.get_debug_address())
+        logging.info(f"New peer connected: {new_peer.get_debug_address()}")
         self.peers.append(new_peer)
         asyncio.create_task(new_peer.run())
 
@@ -144,7 +145,7 @@ class Gossip:
         self.peers = list(filter(lambda p: p != peer, self.peers))
         await peer.close()
 
-        print("Connected peers: {}\r\n".format(self.get_peer_addresses()))
+        logging.debug(f"Connected peers: {self.get_peer_addresses()}\r\n")
 
     async def __run_peer_control(self):
         """Ensures that self.peers has at least self.config.degree many peers
@@ -162,12 +163,12 @@ class Gossip:
             await asyncio.sleep(self.config.search_cooldown)
 
     async def print_api_debug(self):
-        print("[API] connected apis: " + str(self.apis))
-        print("[API] current subscribers: " + str(self.datasubs))
-        print("[API] current routing ids: " +
-              str(list(self.peer_announce_ids.queue)))
-        print("[API] current announces to verify: " +
-              str(self.announces_to_verify))
+        logging.debug(f"[API] connected apis {self.apis}")
+        logging.debug(f"[API] current subscribers {self.datasubs}")
+        logging.debug("[API] current routing ids: " +
+                      f"{list(self.peer_announce_ids.queue)}")
+        logging.debug("[API] current announces to verify: " +
+                      f"{self.announces_to_verify}")
 
     async def add_subscriber(self, datatype, api):
         """Adds an Api_connection to the Subscriber dict (datasubs)
