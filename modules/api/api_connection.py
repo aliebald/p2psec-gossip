@@ -158,7 +158,7 @@ class Api_connection:
                          "[API] Disconnecting API user, wrong message")
             await self.gossip.close_api(self)
         # Debug
-        await self.gossip.print_api_debug()
+        await self.gossip.print_gossip_debug()
         return
 
     async def send_gossip_notification(self, msg_id, dtype, data):

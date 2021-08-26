@@ -144,7 +144,7 @@ class Gossip:
         self.peers = list(filter(lambda p: p != peer, self.peers))
         await peer.close()
 
-        logging.debug(f"[PEER] Connected peers: " +
+        logging.debug("[PEER] Connected peers: " +
                       f"{self.get_peer_addresses()}\r\n")
 
     async def __run_peer_control(self):
@@ -162,16 +162,14 @@ class Gossip:
 
             await asyncio.sleep(self.config.search_cooldown)
 
-    async def print_peer_debug(self):
+    async def print_gossip_debug(self):
         logging.debug(f"[PEER] connected peers: {self.peers}")
-
-    async def print_api_debug(self):
         logging.debug(f"[API] connected apis {self.apis}")
         logging.debug(f"[API] current subscribers {self.datasubs}")
         logging.debug("[API] current routing ids: " +
                       f"{list(self.peer_announce_ids.queue)}")
         logging.debug("[API] current announces to verify: " +
-                      f"{self.announces_to_verify}")
+                      f"{self.announces_to_verify}\r\n")
 
     async def add_subscriber(self, datatype, api):
         """Adds an Api_connection to the Subscriber dict (datasubs)

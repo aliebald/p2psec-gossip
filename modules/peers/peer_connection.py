@@ -254,7 +254,7 @@ class Peer_connection:
                 "[PEER] Received message with unknown type {} from {}".format(
                     type, self.get_debug_address()))
             await self.gossip.close_peer(self)
-        await self.gossip.print_peer_debug()
+        await self.gossip.print_gossip_debug()
 
     async def __handle_peer_announce(self, buf):
         """Handles a peer announce message and calls __send_peer_offer() to
