@@ -38,9 +38,10 @@ class Gossip:
         # Subscriber list, Format: Int - List of Api_connections
         self.datasubs = {}
         self.peer_announce_ids = SetQueue(self.config.cache_size)
-        # Dictionary of open PEER_ANNOUNCEs;
-        # Key: Message ID
-        # Value: [(ttl, datatype, data, [datasubs])]
+        # Dictionary of buffered PEER_ANNOUNCEs;
+        # Key: int - Message ID
+        # Value: [ int, int     , bytes, Peer_connection, [Peer_connection]]
+        #        [(ttl, datatype, data , sender         , [datasubs])]
         self.announces_to_verify = {}
 
     async def run(self):
@@ -234,7 +235,7 @@ class Gossip:
             await peer.send_peer_announce(packet_id, ttl, dtype, data)
         return
 
-    async def handle_peer_announce(self, packet_id, ttl, dtype, data):
+    async def handle_peer_announce(self, packet_id, ttl, dtype, data, peer):
         """Gets called upon arrival of a PEER_ANNOUNCE
            Performs several things:
               - drop if it is a known packet -> loop detected
@@ -263,7 +264,7 @@ class Gossip:
             # save message and subs as tuple: (ttl, dtype, data, [datasubs])
             # and add to dictionary
             self.announces_to_verify[packet_id] = \
-                (ttl, dtype, data, self.datasubs.get(dtype))
+                (ttl, dtype, data, peer, self.datasubs.get(dtype).copy())
             for sub in self.datasubs.get(dtype):
                 await sub.send_gossip_notification(packet_id, dtype, data)
 
@@ -291,28 +292,32 @@ class Gossip:
 
         try:
             # remove this api from the validators of this message id
-            self.announces_to_verify[msg_id][3].remove(api)
+            self.announces_to_verify[msg_id][4].remove(api)
 
             # check if we are the last to verify
             # if yes send PEER_ANNOUNCE to peer sample
-            if len(self.announces_to_verify[msg_id][3]) == 0:
-                (ttl, dtype, data, _) = \
+            if len(self.announces_to_verify[msg_id][4]) == 0:
+                (ttl, dtype, data, peer, _) = \
                     self.announces_to_verify.pop(msg_id, None)
+                peer_sample = await self.__get_peer_announce_sample(
+                    msg_id, ttl, dtype, data)
+                # remove original sender from sample
+                if peer in peer_sample:
+                    peer_sample.remove(peer)
+
                 # forward
-                await self.__send_peer_announce_to_sample(msg_id, ttl,
-                                                          dtype, data)
+                for peer in peer_sample:
+                    await peer.send_peer_announce(msg_id, ttl, dtype, data)
+                return
             return
         except ValueError:  # API is not in validator list
             return
 
-    async def __send_peer_announce_to_sample(self, packet_id, ttl, dtype,
-                                             data):
+    async def __get_peer_announce_sample(self, packet_id, ttl, dtype, data):
         """Gets called if you want to send a PEER_ANNOUNCE to a sample
            of currently connected peers."""
         if len(self.peers) < self.config.degree:
             peer_sample = self.peers
         else:
             peer_sample = sample(self.peers, self.config.degree)
-        for peer in peer_sample:
-            await peer.send_peer_announce(packet_id, ttl, dtype, data)
-        return
+        return peer_sample
