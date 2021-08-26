@@ -58,6 +58,18 @@ class Peer_connection:
         self.peer_p2p_listening_port = peer_p2p_listening_port
         self.__last_challenges = []
 
+    def __str__(self):
+        """called by str(Peer_connection)
+           one object should be printed as:
+               peer<ip:port>"""
+        return "peer<"+self.get_peer_address()+">"
+
+    def __repr__(self):
+        """string representation
+           one object should be printed as:
+               peer<ip:port>"""
+        return "peer<"+self.get_peer_address()+">"
+
     async def run(self):
         """Waits for incoming messages and handles them. Runs until the
         connection is closed"""
@@ -254,7 +266,7 @@ class Peer_connection:
 
         (size, type, id, ttl, data_type, data) = msg
         # TODO uncomment when handle_peer_announce is implemented
-        await self.gossip.handle_peer_announce(id, ttl, data_type, data)
+        await self.gossip.handle_peer_announce(id, ttl, data_type, data, self)
 
     async def __handle_peer_discovery(self, buf):
         """Handles a peer discovery message and calls __send_peer_offer() to
