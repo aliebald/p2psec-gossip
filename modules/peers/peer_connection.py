@@ -234,19 +234,19 @@ class Peer_connection:
         """
         type = get_header_type(buf)
         if type == PEER_ANNOUNCE:
-            logging.info("[PEER] Received PEER_ANNOUNCE from" +
+            logging.info("[PEER] Received PEER_ANNOUNCE from " +
                          f"{self.get_debug_address()}")
             await self.__handle_peer_announce(buf)
         elif type == PEER_DISCOVERY:
-            logging.info("[PEER] Received PEER_DISCOVERY from" +
+            logging.info("[PEER] Received PEER_DISCOVERY from " +
                          f"{self.get_debug_address()}")
             await self.__handle_peer_discovery(buf)
         elif type == PEER_OFFER:
-            logging.info("[PEER] Received PEER_OFFER from" +
+            logging.info("[PEER] Received PEER_OFFER from " +
                          f"{self.get_debug_address()}")
             await self.__handle_peer_offer(buf)
         elif type == PEER_INFO:
-            logging.info("[PEER] Received PEER_INFO from" +
+            logging.info("[PEER] Received PEER_INFO from " +
                          f"{self.get_debug_address()}")
             self.__handle_peer_info(buf)
         else:

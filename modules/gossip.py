@@ -153,7 +153,7 @@ class Gossip:
         while True:
             if len(self.peers) < self.config.degree:
                 logging.info("\r\nLooking for new Peers")
-                logging.info(f"Connected peers: {self.get_peer_addresses}")
+                logging.info(f"Connected peers: {self.get_peer_addresses()}")
                 # Send PeerDiscovery
                 for peer in self.peers:
                     logging.debug("  sending peer discovery to" +
