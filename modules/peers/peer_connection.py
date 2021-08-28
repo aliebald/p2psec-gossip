@@ -10,18 +10,27 @@ from random import getrandbits
 from modules.pow_producer import produce_pow_peer_offer, valid_nonce_peer_offer
 from modules.packet_parser import (
     PEER_ANNOUNCE,
+    PEER_CHALLENGE,
     PEER_DISCOVERY,
     PEER_OFFER,
     PEER_INFO,
+    PEER_VALIDATION,
+    PEER_VERIFICATION,
     get_header_type,
     pack_peer_announce,
+    pack_peer_challenge,
     pack_peer_discovery,
     pack_peer_offer,
     pack_peer_info,
+    pack_peer_validation,
+    pack_peer_verification,
     parse_peer_announce,
+    parse_peer_challenge,
     parse_peer_discovery,
     parse_peer_offer,
-    parse_peer_info
+    parse_peer_info,
+    parse_peer_validation,
+    parse_peer_verification
 )
 
 
@@ -43,7 +52,8 @@ class Peer_connection:
                          challenge is no longer valid
     """
 
-    def __init__(self, reader, writer, gossip, peer_p2p_listening_port=None):
+    def __init__(self, reader, writer, gossip, peer_p2p_listening_port=None,
+                 validated=False):
         """
         Arguments:
         - reader (StreamReader) -- asyncio StreamReader of connected peer
@@ -51,12 +61,16 @@ class Peer_connection:
         - gossip (Gossip) -- gossip responsible for this peer
         - peer_p2p_listening_port (int) -- (Optional, default: None) Port the
           connected peer accepts new peer connections at
+        - validated (boolean) -- (Optional, default: False) wheather or not
+          this node is validated by the connected node/peer. Gets updated upon
+          receiving a peer validation.
         """
         self.gossip = gossip
         self.__reader = reader
         self.__writer = writer
         self.peer_p2p_listening_port = peer_p2p_listening_port
         self.__last_challenges = []
+        self.__validated = validated
 
     async def run(self):
         """Waits for incoming messages and handles them. Runs until the
@@ -71,7 +85,7 @@ class Peer_connection:
 
     async def close(self):
         """Closes the connection to the peer.
-        Gossip.close_peer() should be called preferably, since it also removes 
+        Gossip.close_peer() should be called preferably, since it also removes
         the peer from the peer list."""
         logging.info(f"Connection to {self.get_debug_address()} closed")
         try:
@@ -86,7 +100,7 @@ class Peer_connection:
 
         Returns:
             If known, p2p listening address of peer in the format host:port,
-            otherwise None 
+            otherwise None
 
         See also:
         - get_own_address()
@@ -145,11 +159,41 @@ class Peer_connection:
         await self.__send(message)
 
     async def send_peer_announce(self, id, ttl, data_type, data):
-        """Sends a peer announce message. For documentation of parameters, see 
+        """Sends a peer announce message. For documentation of parameters, see
         the project documentation"""
         message = pack_peer_announce(id, ttl, data_type, data)
         logging.info(f"Sending PEER ANNOUNCE with id: {id}, ttl: {ttl} and "
                      f" data type: {data_type}")
+        await self.__send(message)
+
+    async def send_peer_challenge(self):
+        """Sends a peer challenge message"""
+        challenge = 0  # TODO generate and save challenge
+        message = pack_peer_challenge(challenge)
+        logging.info(f"Sending PEER CHALLENGE with challenge: {challenge}")
+        await self.__send(message)
+
+    async def __send_peer_validation(self, valid):
+        """Sends a peer validation message
+        Arguments:
+        - valid (bool) -- Valid bit - See project documentation
+        """
+        message = pack_peer_validation(valid)
+        logging.info(f"Sending PEER VALIDATION with valid: {valid}")
+        await self.__send(message)
+        # Tell gossip that this peer is now validated, if valid
+        if valid:
+            self.gossip.validate_peer(self)
+
+    async def __send_peer_verification(self, nonce):
+        """Sends a peer verification message.
+        Arguments:
+        - nonce (int) -- Nonce for challenge received in peer challenge - See 
+          project documentation
+        """
+        message = pack_peer_verification(nonce)
+        # TODO handle message = None
+        logging.info(f"Sending PEER VERIFICATION with nonce: {nonce}")
         await self.__send(message)
 
     async def __send_peer_offer(self, challenge):
@@ -212,7 +256,7 @@ class Peer_connection:
 
     async def __handle_incoming_message(self, buf):
         """Checks the type of an incoming message in byte format and calls the
-        correct handler according the the type. 
+        correct handler according the the type.
 
         Arguments:
         - buf (byte-object) -- received message
@@ -233,6 +277,18 @@ class Peer_connection:
         elif type == PEER_INFO:
             logging.info(f"Received PEER_INFO from {self.get_debug_address()}")
             self.__handle_peer_info(buf)
+        elif type == PEER_CHALLENGE:
+            logging.info(
+                f"Received PEER_CHALLENGE from {self.get_debug_address()}")
+            await self.__handle_peer_challenge(buf)
+        elif type == PEER_VERIFICATION:
+            logging.info(
+                f"Received PEER_VERIFICATION from {self.get_debug_address()}")
+            await self.__handle_peer_verification(buf)
+        elif type == PEER_VALIDATION:
+            logging.info(
+                f"Received PEER_VALIDATION from {self.get_debug_address()}")
+            self.__handle_peer_validation(buf)
         else:
             logging.info(
                 "Received message with unknown type {} from {}".format(
@@ -244,7 +300,7 @@ class Peer_connection:
         send a response.
 
         Arguments:
-        - buf (byte-object) -- received message in byte format. The type must 
+        - buf (byte-object) -- received message in byte format. The type must
           be PEER_ANNOUNCE
         """
         msg = parse_peer_announce(buf)
@@ -259,7 +315,7 @@ class Peer_connection:
         send a response.
 
         Arguments:
-        - buf (byte-object) -- received message in byte format. The type must 
+        - buf (byte-object) -- received message in byte format. The type must
           be PEER_DISCOVERY
         """
         msg = parse_peer_discovery(buf)
@@ -298,6 +354,47 @@ class Peer_connection:
 
         # save data / pass it to gossip
         await self.gossip.offer_peers(data)
+
+    async def __handle_peer_challenge(self, buf):
+        """Handles a peer challenge message.
+
+        Arguments:
+        - buf (byte-object) -- received message in byte format. The type must
+          be PEER_CHALLENGE
+        """
+        challenge = parse_peer_challenge(buf)
+        if challenge == None:
+            return
+
+        # TODO solve challenge!
+
+        await self.__send_peer_verification(0)  # TODO valid nonce
+
+    async def __handle_peer_verification(self, buf):
+        nonce = parse_peer_verification(buf)
+        if nonce == None:
+            return
+
+        # TODO check nonce
+
+        # TODO if valid:
+        await self.__send_peer_validation(True)
+
+    def __handle_peer_validation(self, buf):
+        """Handles a peer validation message.
+
+        Arguments:
+        - buf (byte-object) -- received message in byte format. The type must
+          be PEER_CHALLENGE
+        """
+        valid = parse_peer_validation(buf)
+        if valid == None:
+            return
+
+        assert type(valid) is bool
+        logging.info(f"Received validation with valid = {valid}")
+        self.__validated = valid
+        # TODO what if we where verified but received and invalid validation
 
     def __handle_peer_info(self, buf):
         """Handles a peer info message. Saves the received p2p_listening_port.
@@ -352,7 +449,8 @@ async def peer_connection_factory(addresses, gossip, p2p_listening_port):
 
 
 async def __connect_peer(address, gossip, p2p_listening_port):
-    """Opens a connection to the given ip & port and creates a Peer_connection.
+    """Opens a connection to the given ip & port and creates a Peer_connection
+    and send a peer info message.
 
     Arguments:
     - ip (str) -- target ip address
