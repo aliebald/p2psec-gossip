@@ -46,12 +46,12 @@ async def test_peer_announce():
     peer2.connect(('127.0.0.1', 6001))
     # Send PEER_ANNOUNCE
     peer1.sendall(pp.pack_peer_announce(1, 2, 1, b''))
-    peer1_buf = await asyncio.create_task(await_message(peer1))
-    peer2_buf = await asyncio.create_task(await_message(peer2))
+    task_peer1 = asyncio.create_task(await_message(peer1))
+    peer2_buf = await await_message(peer2)
 
     # Check for received GOSSIP_NOTIFICATION
-    api1_buf = asyncio.create_task(await await_message(api1))
-    api2_buf = asyncio.create_task(await await_message(api2))
+    api1_buf = await await_message(api1)
+    api2_buf = await await_message(api2)
     (api1_msg_id, api1_dtype, api1_data) = \
         pp.parse_gossip_notification(api1_buf)
     (api2_msg_id, api2_dtype, api2_data) = \
@@ -63,6 +63,8 @@ async def test_peer_announce():
     else:
         print("[TEST 01]: GOSSIP_NOTIFICATIONs - wrong")
 
+    # TODO: program is blocking here??
+
     # Send GOSSIP_VALIDATION
     api1.sendall(struct.pack(FORMAT_GOSSIP_VALIDATION, 8,
                              GOSSIP_VALIDATION, 1, 1))
@@ -70,29 +72,42 @@ async def test_peer_announce():
                              GOSSIP_VALIDATION, 1, 1))
 
     # Check: Peer 2 got PEER_ANNOUNCE, Peer 1 should not
-    (_, _, peer_id, peer_ttl, peer_dtype, peer_data) = \
-        pp.parse_peer_announce(peer2_buf)
-    if((not peer1_buf.done()) and peer_id == 1 and peer_ttl == 1 and
-       peer_dtype == 1 and peer_data == b''):
-        print("[TEST 02]: PEER_ANNOUNCE - correct")
-    else:
+    temp = pp.parse_peer_announce(peer2_buf)
+    if temp is None:
         print("[TEST 02]: PEER_ANNOUNCE - wrong")
+        close_all([api1, api2, peer1, peer2])
+        return
+    else:
+        (_, _, peer_id, peer_ttl, peer_dtype, peer_data) = temp
 
-    api1.close()
-    api2.close()
-    peer1.close()
-    peer2.close()
+        if((not task_peer1.done()) and peer_id == 1 and peer_ttl == 1 and
+           peer_dtype == 1 and peer_data == b''):
+            print("[TEST 02]: PEER_ANNOUNCE - correct")
+        else:
+            print("[TEST 02]: PEER_ANNOUNCE - wrong")
+        close_all([api1, api2, peer1, peer2])
+
+
+def close_all(socket_list):
+    for s in socket_list:
+        s.close()
 
 
 async def await_message(socket):
-    size_bytes = socket.recv(2)
-    size = int.from_bytes(size_bytes, "big")
-    buf = size_bytes + socket.recv(size)
-    return buf
+    try:
+        size_bytes = socket.recv(2)
+        size = int.from_bytes(size_bytes, "big")
+        buf = size_bytes + socket.recv(size)
+        return buf
+    except OSError:
+        return
 
 
 def test_gossip_announce(): pass
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except KeyboardInterrupt:
+        pass
