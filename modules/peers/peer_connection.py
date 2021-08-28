@@ -75,6 +75,8 @@ class Peer_connection:
         connection is closed"""
         while True:
             try:
+                if self.__writer.is_closing():
+                    break
                 size_bytes = await self.__reader.read(2)
                 size = int.from_bytes(size_bytes, "big")
                 buf = size_bytes + await self.__reader.read(size-2)
@@ -91,6 +93,7 @@ class Peer_connection:
         try:
             self.__writer.close()
             await self.__writer.wait_closed()
+            return
         except Exception:
             return
 
