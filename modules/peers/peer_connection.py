@@ -55,12 +55,16 @@ class Peer_connection:
       than timeout, the challenge is no longer valid
     - peer_challenge (Tuple: int, int) -- challenge with timeout send to 
       connected node. None if none was send.
-    - validated (boolean) -- whether this node is validated by the connected 
+    - is_thrustworthy (boolean) -- whether the connected node is considered 
+      thrustworthy. A node can proof itself trustworthy by geting validated by 
+      us (push peers), see Documentation. Nodes we connect to should be set to 
+      be thrustworthy by default.
+    - is_validated (boolean) -- whether this node is validated by the connected 
       node/peer. Gets updated upon receiving a peer validation.
     """
 
     def __init__(self, reader, writer, gossip, peer_p2p_listening_port=None,
-                 validated=False, is_thrustworthy=False):
+                 is_validated=False, is_thrustworthy=False):
         """
         Arguments:
         - reader (StreamReader) -- asyncio StreamReader of connected peer
@@ -68,9 +72,13 @@ class Peer_connection:
         - gossip (Gossip) -- gossip responsible for this peer
         - peer_p2p_listening_port (int) -- (Optional, default: None) Port the
           connected peer accepts new peer connections at
-        - validated (boolean) -- (Optional, default: False) whether this node
+        - is_validated (boolean) -- (Optional, default: False) whether this node
           is validated by the connected node/peer. Gets updated upon receiving
           a peer validation.
+        - is_thrustworthy (boolean) -- whether the connected node is considered 
+          thrustworthy. A node can proof itself trustworthy by geting validated
+          by us (push peers), see Documentation. Nodes we connect to should be 
+          set to be thrustworthy.
         """
         self.gossip = gossip
         self.__reader = reader
@@ -79,7 +87,7 @@ class Peer_connection:
         self.__peer_challenge = None
         self.__last_challenges = []
         self.__is_thrustworthy = is_thrustworthy  # is the connected node trustworthy?
-        self.__is_validated = validated  # are we validated?
+        self.__is_validated = is_validated  # are we validated?
 
     async def run(self):
         """Waits for incoming messages and handles them. Runs until the
@@ -167,6 +175,11 @@ class Peer_connection:
 
     async def send_peer_discovery(self):
         """Sends a peer discovery message."""
+        if not self.__is_thrustworthy:
+            logging.debug(
+                "Not sending PEER DISCOVERY since peer is not thrustworthy")
+            return
+
         message = pack_peer_discovery(self.__generate_challenge())
         logging.info(f"Sending PEER DISCOVERY to {self.get_debug_address()}\n")
         await self.__send(message)
@@ -174,6 +187,11 @@ class Peer_connection:
     async def send_peer_announce(self, id, ttl, data_type, data):
         """Sends a peer announce message. For documentation of parameters, see
         the project documentation"""
+        if not self.__is_thrustworthy:
+            logging.debug(
+                "Not sending PEER ANNOUNCE since peer is not thrustworthy")
+            return
+
         message = pack_peer_announce(id, ttl, data_type, data)
         logging.info(f"Sending PEER ANNOUNCE with id: {id}, ttl: {ttl} and "
                      f" data type: {data_type}")
@@ -188,6 +206,7 @@ class Peer_connection:
         if self.__peer_challenge != None:
             logging.warning("Trying to send a peer challenge, even tough a"
                             "challenge has already been send")
+            self.__is_thrustworthy = False
             await self.gossip.close_peer(self)
             return
 
@@ -317,6 +336,7 @@ class Peer_connection:
             logging.info(
                 "Received message with unknown type {} from {}".format(
                     type, self.get_debug_address()))
+            self.__is_thrustworthy = False
             await self.gossip.close_peer(self)
 
     async def __handle_peer_announce(self, buf):
@@ -342,6 +362,11 @@ class Peer_connection:
         - buf (byte-object) -- received message in byte format. The type must
           be PEER_DISCOVERY
         """
+        if not self.__is_thrustworthy:
+            logging.debug(
+                "Ignoring PEER DISCOVERY since peer is not thrustworthy")
+            return
+
         msg = parse_peer_discovery(buf)
         if (msg == None):
             return
@@ -357,6 +382,10 @@ class Peer_connection:
         - buf (byte-object) -- received message in byte format. The type must 
           be PEER_DISCOVERY
         """
+        if not self.__is_thrustworthy:
+            logging.debug("Ignoring PEER OFFER since peer is not thrustworthy")
+            return
+
         msg = parse_peer_offer(buf)
         if (msg == None):
             return
@@ -405,6 +434,7 @@ class Peer_connection:
         if self.__peer_challenge == None:
             logging.warning("Received PEER VERIFICATION but no PEER CHALLENGE "
                             "was send. Disconnecting peer")
+            self.__is_thrustworthy = False
             await self.gossip.close_peer(self)
 
         (challenge, timeout) = self.__peer_challenge
@@ -516,7 +546,7 @@ async def __connect_peer(address, gossip, p2p_listening_port):
         return None
 
     await __send_peer_info(writer, p2p_listening_port)
-    return Peer_connection(reader, writer, gossip, port, True)
+    return Peer_connection(reader, writer, gossip, port, is_thrustworthy=True)
 
 
 async def __send_peer_info(writer, p2p_listening_port):

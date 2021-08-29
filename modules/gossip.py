@@ -125,7 +125,7 @@ class Gossip:
             await writer.wait_closed()
             return
 
-        new_peer = Peer_connection(reader, writer, self)
+        new_peer = Peer_connection(reader, writer, self, is_validated=True)
         logging.info(
             f"New unverified peer connected: {new_peer.get_debug_address()}")
 
