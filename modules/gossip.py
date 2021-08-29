@@ -34,9 +34,10 @@ class Gossip:
     - datasubs (dictionary: int-[Api_connection]) -- Datatypes linking to all 
       theire subscribing APIs
     - peer_announce_ids (SetQueue) -- TODO document
-    - announces_to_verify (dictionary: int - Tuple) -- open PEER_ANNOUNCES. 
-      PEER_ANNOUNCES Will be forwarded if/when all subscribers verify the 
-      message. Format: message-id : [(ttl, datatype, data, [datasubs])]
+    - announces_to_verify (dictionary: int - Tuple List) -- open 
+      PEER_ANNOUNCES. PEER_ANNOUNCES Will be forwarded if/when all subscribers 
+      verify the message. 
+      Format: message-id : [(ttl, datatype, data, [datasubs])]
     """
 
     def __init__(self, config):
