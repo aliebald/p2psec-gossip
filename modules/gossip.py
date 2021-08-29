@@ -48,8 +48,8 @@ class Gossip:
         self.config = config
 
         # TODO floor / ceil?
-        self.max_push_peers = floor(self.config.degree / 2)
-        self.max_pull_peers = ceil(self.config.degree / 2)
+        self.max_push_peers = floor(self.config.max_connections / 2)
+        self.max_pull_peers = ceil(self.config.max_connections / 2)
 
         self.push_peers = []  # Push peers that connected to us
         self.pull_peers = []  # Pull peers that we connected to
@@ -126,8 +126,7 @@ class Gossip:
             return
 
         new_peer = Peer_connection(reader, writer, self, is_validated=True)
-        logging.info(
-            f"New unverified peer connected: {new_peer.get_debug_address()}")
+        logging.info(f"New unverified peer connected: {new_peer}")
 
         self.unverified_peers.append(new_peer)
         asyncio.create_task(new_peer.run())
@@ -163,7 +162,8 @@ class Gossip:
 
         logging.info(f"Offer contained: {peer_addresses}")
         # remove already connected peers
-        connected = self.get_peer_addresses()
+        all_peers = self.push_peers + self.pull_peers + self.unverified_peers
+        connected = self.get_peer_addresses(all_peers)
         candidates = list(filter(lambda x: x not in connected, peer_addresses))
 
         if len(candidates) == 0:
@@ -244,8 +244,6 @@ class Gossip:
                 logging.info("Looking for new Peers")
                 # Send PeerDiscovery
                 for peer in self.push_peers + self.pull_peers:
-                    logging.info("sending peer discovery to: {}".format(
-                        peer.get_debug_address()))
                     await peer.send_peer_discovery()
             self.__log_connected_peers()
 
