@@ -97,7 +97,7 @@ class Gossip:
         self.apis.append(new_api)
         asyncio.create_task(new_api.run())
 
-    def __on_peer_connection(self, reader, writer):
+    async def __on_peer_connection(self, reader, writer):
         """Gets called when a new peer tries to connect.
 
         Arguments:
@@ -105,12 +105,12 @@ class Gossip:
         - writer (StreamWriter) -- asyncio StreamWriter connected to a new peer
         """
         # Check if we have capacity for this new push peer
-        # if (len(self.push_peers) + len(self.unverified_peers)
-        #         >= self.max_push_peers):
-        #     logging.info("Reached max push peers, ignoring new incoming peer")
-        #     writer.close()
-        #     # await self.__writer.wait_closed()
-        #     return
+        if (len(self.push_peers) + len(self.unverified_peers)
+                >= self.max_push_peers):
+            logging.info("Reached max push peers, ignoring new incoming peer")
+            writer.close()
+            await writer.wait_closed()
+            return
 
         new_peer = Peer_connection(reader, writer, self)
         logging.info(
@@ -213,9 +213,12 @@ class Gossip:
         elif peer in self.unverified_peers:
             self.unverified_peers.remove(peer)
         else:
-            # This case should never happen but is here to avoid errors
-            raise KeyError("Programming Error: peer not found in peer lists!"
-                           "There is likely a bug somewhere in Gossip.")
+            # It can happen that the peer is not in any of the above lists, e.g.
+            # when a connection is closed directly after establishing it in the
+            # Peer_connection factory
+            logging.debug("The Peer that should be closed was not found in"
+                          "push_peers, pull_peers or unverified_peers")
+
         await peer.close()
         self.__log_connected_peers()
 

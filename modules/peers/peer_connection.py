@@ -76,12 +76,16 @@ class Peer_connection:
         """Waits for incoming messages and handles them. Runs until the
         connection is closed"""
         while True:
+            if self.__writer.is_closing():
+                logging.debug("[Peer_connection]: writer is_closing {}"
+                              .format(self.get_debug_address()))
+                break
             try:
                 buf = await self.__reader.read(4096)  # TODO buffersize?
             except ConnectionError:
-                await self.gossip.close_peer(self)
-                return
+                break
             await self.__handle_incoming_message(buf)
+        await self.gossip.close_peer(self)
 
     async def close(self):
         """Closes the connection to the peer.
