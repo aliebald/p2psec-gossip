@@ -239,7 +239,13 @@ class Gossip:
         """Ensures that self.push_peers has at least max_push_peers many peers
         """
         while True:
-            if len(self.push_peers) < self.max_push_peers:
+            search_new_peers = (
+                len(self.push_peers) + len(self.unverified_peers)
+                < self.max_push_peers
+                and len(self.push_peers) + len(self.pull_peers)
+                < self.config.min_connections
+            )
+            if search_new_peers:
                 logging.info("- - - - - - - - - - -")
                 logging.info("Looking for new Peers")
                 # Send PeerDiscovery
