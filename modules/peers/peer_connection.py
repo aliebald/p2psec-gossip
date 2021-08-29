@@ -7,7 +7,11 @@ import asyncio
 import time
 from random import getrandbits
 
-from modules.pow_producer import produce_pow_peer_offer, valid_nonce_peer_offer
+from modules.pow_producer import (
+    produce_pow_peer_challenge,
+    produce_pow_peer_offer,
+    valid_nonce_peer_challenge,
+    valid_nonce_peer_offer)
 from modules.packet_parser import (
     PEER_ANNOUNCE,
     PEER_CHALLENGE,
@@ -46,14 +50,17 @@ class Peer_connection:
     - reader (StreamReader) -- (private) asyncio StreamReader of connected peer
     - writer (StreamWriter) -- (private) asyncio StreamWriter of connected peer
     - peer_p2p_listening_port (int) -- p2p_listening_port of connected peer
-    - last_challenges -- (private) list of send challenges combined with a
-                         timeout. Format: [(challenge, timeout)]
-                         When the current time is greater than timeout, the
-                         challenge is no longer valid
+    - last_challenges -- (private) list of send challenges combined with a 
+      timeout. Format: [(challenge, timeout)] When the current time is greater
+      than timeout, the challenge is no longer valid
+    - peer_challenge (Tuple: int, int) -- challenge with timeout send to 
+      connected node. None if none was send.
+    - validated (boolean) -- whether this node is validated by the connected 
+      node/peer. Gets updated upon receiving a peer validation.
     """
 
     def __init__(self, reader, writer, gossip, peer_p2p_listening_port=None,
-                 validated=False):
+                 validated=False, is_thrustworthy=False):
         """
         Arguments:
         - reader (StreamReader) -- asyncio StreamReader of connected peer
@@ -61,16 +68,18 @@ class Peer_connection:
         - gossip (Gossip) -- gossip responsible for this peer
         - peer_p2p_listening_port (int) -- (Optional, default: None) Port the
           connected peer accepts new peer connections at
-        - validated (boolean) -- (Optional, default: False) wheather or not
-          this node is validated by the connected node/peer. Gets updated upon
-          receiving a peer validation.
+        - validated (boolean) -- (Optional, default: False) whether this node
+          is validated by the connected node/peer. Gets updated upon receiving
+          a peer validation.
         """
         self.gossip = gossip
         self.__reader = reader
         self.__writer = writer
         self.peer_p2p_listening_port = peer_p2p_listening_port
+        self.__peer_challenge = None
         self.__last_challenges = []
-        self.__validated = validated
+        self.__is_thrustworthy = is_thrustworthy  # is the connected node trustworthy?
+        self.__is_validated = validated  # are we validated?
 
     async def run(self):
         """Waits for incoming messages and handles them. Runs until the
@@ -171,8 +180,19 @@ class Peer_connection:
         await self.__send(message)
 
     async def send_peer_challenge(self):
-        """Sends a peer challenge message"""
-        challenge = 0  # TODO generate and save challenge
+        """Sends a peer challenge message and saves the challenge with a 
+        timeout in __peer_challenge. Should only be called once per peer and 
+        only if we where not the initiator of the connection. 
+        See Project Documentation - Push Gossip"""
+        # Check if a peer challenge was already send
+        if self.__peer_challenge != None:
+            logging.warning("Trying to send a peer challenge, even tough a"
+                            "challenge has already been send")
+            await self.gossip.close_peer(self)
+            return
+
+        challenge = getrandbits(64)
+        self.__peer_challenge = (challenge, time.time() + CHALLENGE_TIMEOUT)
         message = pack_peer_challenge(challenge)
         logging.info(f"Sending PEER CHALLENGE with challenge: {challenge}")
         await self.__send(message)
@@ -369,19 +389,39 @@ class Peer_connection:
         challenge = parse_peer_challenge(buf)
         if challenge == None:
             return
-
-        # TODO solve challenge!
-
-        await self.__send_peer_verification(0)  # TODO valid nonce
+        # solve the challenge
+        nonce = produce_pow_peer_challenge(challenge)
+        if nonce == None:
+            return
+        await self.__send_peer_verification(nonce)
 
     async def __handle_peer_verification(self, buf):
         nonce = parse_peer_verification(buf)
         if nonce == None:
             return
 
-        # TODO check nonce
+        # Check if we send a peer challenge, otherwise we do not except an
+        # verification
+        if self.__peer_challenge == None:
+            logging.warning("Received PEER VERIFICATION but no PEER CHALLENGE "
+                            "was send. Disconnecting peer")
+            await self.gossip.close_peer(self)
 
-        # TODO if valid:
+        (challenge, timeout) = self.__peer_challenge
+        if timeout < time.time():
+            logging.info("Received PEER VERIFICATION after timeout for "
+                         "challenge expired")
+            self.__is_thrustworthy = False
+            await self.__send_peer_validation(False)
+
+        # Check if nonce is not valid
+        if not valid_nonce_peer_challenge(challenge, nonce):
+            logging.info("Received PEER VERIFICATION with invalid nonce")
+            self.__is_thrustworthy = False
+            await self.__send_peer_validation(False)
+
+        # received valid verification, this peer is now trustworthy
+        self.__is_thrustworthy = True
         await self.__send_peer_validation(True)
 
     def __handle_peer_validation(self, buf):
@@ -397,7 +437,7 @@ class Peer_connection:
 
         assert type(valid) is bool
         logging.info(f"Received validation with valid = {valid}")
-        self.__validated = valid
+        self.__is_validated = valid
         # TODO what if we where verified but received and invalid validation
 
     def __handle_peer_info(self, buf):

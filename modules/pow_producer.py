@@ -43,3 +43,46 @@ def valid_nonce_peer_offer(data):
     """
     hash = hashlib.sha256(data).hexdigest()
     return hash[:4] == '0000'
+
+
+def valid_nonce_peer_challenge(challenge, nonce):
+    """Checks if the given nonce produces a valid hash with the given challenge
+
+    Arguments:
+    - challenge (byte-object / int): challenge from peer challenge
+    - nonce (byte-object / int): nonce for challenge
+
+    Returns:
+        True if the first 16 bits of the SHA256 hash value from the package are
+        0.
+    """
+    if type(challenge) not in [bytes, bytearray]:
+        challenge = int(challenge).to_bytes(8, 'big')
+    if type(nonce) not in [bytes, bytearray]:
+        nonce = int(nonce).to_bytes(8, 'big')
+
+    hash = hashlib.sha256(challenge + nonce).hexdigest()
+    return hash[:4] == '0000'
+
+
+def produce_pow_peer_challenge(challenge):
+    """Attempts to find a valid nonce for a peer challenge message.
+
+    Arguments:
+    - challenge (byte-object / int): challenge from peer challenge
+
+    Returns:
+        Valid nonce (int) if found or None if no nonce was found.
+    """
+    if type(challenge) not in [bytes, bytearray]:
+        challenge = int(challenge).to_bytes(8, 'big')
+
+    start = time.time()
+    max = 2**64
+    logging.debug("searching for nonce")
+    for nonce in range(max):
+        if valid_nonce_peer_challenge(challenge, nonce):
+            logging.debug(f"Found nonce after {time.time()-start} seconds")
+            return nonce
+    logging.warning(f"Failed to find nonce after {time.time()-start} seconds")
+    return None
