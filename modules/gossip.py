@@ -21,10 +21,22 @@ class Gossip:
 
     Class variables:
     - config (Config) -- config object used for this instance of gossip
-    - peers (Peer_connection List) -- Connected (active) peers
+    - push_peers (Peer_connection List) -- Connected (active) push peers /
+      peers that connected to us
+    - pull_peers (Peer_connection List) -- Connected (active) pull peers / 
+      peers we learned about from other peers and than connected to.
+    - unverified_peers (Peer_connection List) -- peers that connected to us 
+      that still need to be verified. After beeing verified, they will be moved 
+      into push_peers.
+    - max_push_peers (int) -- push_peers capacity
+    - max_pull_peers (int) -- pull_peers capacity
     - apis (Api_connection List) -- connected APIs
-    - datasubs (int-[Api_connection] Dictionary) -- APIs subscribed to each
-                                                    datatype
+    - datasubs (dictionary: int-[Api_connection]) -- Datatypes linking to all 
+      theire subscribing APIs
+    - peer_announce_ids (SetQueue) -- TODO document
+    - announces_to_verify (dictionary: int - Tuple) -- open PEER_ANNOUNCES. 
+      PEER_ANNOUNCES Will be forwarded if/when all subscribers verify the 
+      message. Format: message-id : [(ttl, datatype, data, [datasubs])]
     """
 
     def __init__(self, config):
