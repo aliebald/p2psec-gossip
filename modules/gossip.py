@@ -147,7 +147,7 @@ class Gossip:
         self.unverified_peers.remove(peer)
         self.push_peers.append(peer)
 
-    async def offer_peers(self, peer_addresses):
+    async def handle_peer_offer(self, peer_addresses):
         """Offers peer_addresses to this gossip class. Gets called after a peer
         offer was received.
 

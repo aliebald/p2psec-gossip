@@ -331,7 +331,7 @@ class Peer_connection:
 
     async def __handle_peer_offer(self, buf):
         """Handles a peer offer message. 
-        Calls offer_peers() of gossip if everything is ok.
+        Calls handle_peer_offer() of gossip if everything is ok.
 
         Arguments:
         - buf (byte-object) -- received message in byte format. The type must 
@@ -357,7 +357,7 @@ class Peer_connection:
             data = list(filter(lambda ip: ip != p2p_address, data))
 
         # save data / pass it to gossip
-        await self.gossip.offer_peers(data)
+        await self.gossip.handle_peer_offer(data)
 
     async def __handle_peer_challenge(self, buf):
         """Handles a peer challenge message.
