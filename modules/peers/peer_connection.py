@@ -476,7 +476,7 @@ async def __connect_peer(address, gossip, p2p_listening_port):
         return None
 
     await __send_peer_info(writer, p2p_listening_port)
-    return Peer_connection(reader, writer, gossip, port)
+    return Peer_connection(reader, writer, gossip, port, True)
 
 
 async def __send_peer_info(writer, p2p_listening_port):
