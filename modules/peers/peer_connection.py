@@ -90,7 +90,7 @@ class Peer_connection:
         self.__is_validated = is_validated  # are we validated?
 
     def __str__(self):
-        """called by str(Api_connection). Uses the debug address"""
+        """Called by str(Peer_connection). Uses the debug address"""
         return f"Peer<{self.get_debug_address()}>"
 
     def __repr__(self):
@@ -98,18 +98,6 @@ class Peer_connection:
         less ambiguous) debug address.
         """
         return f"Peer<{self.get_peer_address()}>"
-
-    def __str__(self):
-        """called by str(Peer_connection)
-           one object should be printed as:
-               peer<ip:port>"""
-        return "peer<"+self.get_peer_address()+">"
-
-    def __repr__(self):
-        """string representation
-           one object should be printed as:
-               peer<ip:port>"""
-        return "peer<"+self.get_peer_address()+">"
 
     async def run(self):
         """Waits for incoming messages and handles them. Runs until the
