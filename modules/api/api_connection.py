@@ -73,7 +73,7 @@ class Api_connection:
         Gossip.close_api() should be called preferably, since it also removes
         the API from the API list and datatype dictionary."""
 
-        logging.info(f"[API] Connection to {self.get_api_address} closed")
+        logging.info(f"[API] Connection to {self.get_api_address()} closed")
         try:
             self.__writer.close()
             await self.__writer.wait_closed()
