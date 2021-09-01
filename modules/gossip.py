@@ -263,7 +263,7 @@ class Gossip:
             await asyncio.sleep(self.config.search_cooldown)
 
     async def print_gossip_debug(self):
-        # logging.debug(f"[PEER] connected peers: {self.peers}") # TODO fix
+        self.__log_connected_peers()
         logging.debug(f"[API] connected apis {self.apis}")
         logging.debug(f"[API] current subscribers {self.datasubs}")
         logging.debug("[API] current routing ids: " +
