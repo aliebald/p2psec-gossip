@@ -55,16 +55,17 @@ class Peer_connection:
       than timeout, the challenge is no longer valid
     - peer_challenge (Tuple: int, int) -- challenge with timeout send to 
       connected node. None if none was send.
-    - is_trustworthy (boolean) -- whether the connected node is considered 
-      trustworthy. A node can proof itself trustworthy by geting validated by 
-      us (push peers), see Documentation. Nodes we connect to should be set to 
-      be trustworthy by default.
-    - is_validated (boolean) -- whether this node is validated by the connected 
-      node/peer. Gets updated upon receiving a peer validation.
+    - validated_them (boolean) -- Whether the connected node is validated / 
+      considered trustworthy. A node can prove itself trustworthy by getting 
+      validated by us (push peers), see Documentation. Nodes we connect to 
+      should be set to be validated_them by default.
+    - validated_us (boolean) -- whether this node is validated by the connected 
+      node/peer. Gets updated upon receiving a peer validation. If we receive a
+      new incoming connection, we assume that this peer trusts us.
     """
 
     def __init__(self, reader, writer, gossip, peer_p2p_listening_port=None,
-                 is_validated=False, is_trustworthy=False):
+                 validated_us=False, validated_them=False):
         """
         Arguments:
         - reader (StreamReader) -- asyncio StreamReader of connected peer
@@ -72,11 +73,11 @@ class Peer_connection:
         - gossip (Gossip) -- gossip responsible for this peer
         - peer_p2p_listening_port (int) -- (Optional, default: None) Port the
           connected peer accepts new peer connections at
-        - is_validated (boolean) -- (Optional, default: False) whether this node
+        - validated_us (boolean) -- (Optional, default: False) whether this node
           is validated by the connected node/peer. Gets updated upon receiving
           a peer validation.
-        - is_trustworthy (boolean) -- whether the connected node is considered 
-          trustworthy. A node can proof itself trustworthy by geting validated
+        - validated_them (boolean) -- whether the connected node is considered 
+          trustworthy. A node can prove itself trustworthy by getting validated
           by us (push peers), see Documentation. Nodes we connect to should be 
           set to be trustworthy.
         """
@@ -86,8 +87,8 @@ class Peer_connection:
         self.peer_p2p_listening_port = peer_p2p_listening_port
         self.__peer_challenge = None
         self.__last_challenges = []
-        self.__is_trustworthy = is_trustworthy  # is the connected node trustworthy?
-        self.__is_validated = is_validated  # are we validated?
+        self.__validated_them = validated_them
+        self.__validated_us = validated_us
 
     def __str__(self):
         """Called by str(Peer_connection). Uses the debug address"""
@@ -191,7 +192,7 @@ class Peer_connection:
 
     async def send_peer_discovery(self):
         """Sends a peer discovery message."""
-        if not self.__is_trustworthy:
+        if not self.__validated_them:
             logging.debug("[PEER] Not sending PEER DISCOVERY connected peer "
                           f"({self}) is not yet verified")
             return
@@ -203,7 +204,7 @@ class Peer_connection:
     async def send_peer_announce(self, id, ttl, data_type, data):
         """Sends a peer announce message. For documentation of parameters, see
         the project documentation"""
-        if not self.__is_trustworthy:
+        if not self.__validated_them:
             logging.debug("[PEER] Not sending PEER ANNOUNCE connected peer "
                           f"({self}) is not yet verified")
             return
@@ -222,7 +223,7 @@ class Peer_connection:
         if self.__peer_challenge != None:
             logging.warning("[PEER] Trying to send a peer challenge, even "
                             "tough a challenge has already been send")
-            self.__is_trustworthy = False
+            self.__validated_them = False
             await self.gossip.close_peer(self)
             return
 
@@ -349,7 +350,7 @@ class Peer_connection:
         else:
             logging.info(f"[PEER] Received message with unknown type {type} "
                          f"from {self}")
-            self.__is_trustworthy = False
+            self.__validated_them = False
             await self.gossip.close_peer(self)
 
     async def __handle_peer_announce(self, buf):
@@ -375,7 +376,7 @@ class Peer_connection:
         - buf (byte-object) -- received message in byte format. The type must
           be PEER_DISCOVERY
         """
-        if not self.__is_trustworthy:
+        if not self.__validated_them:
             logging.debug(
                 "[PEER] Ignoring PEER DISCOVERY since peer is not trustworthy")
             return
@@ -395,7 +396,7 @@ class Peer_connection:
         - buf (byte-object) -- received message in byte format. The type must 
           be PEER_DISCOVERY
         """
-        if not self.__is_trustworthy:
+        if not self.__validated_them:
             logging.debug(f"[PEER] Ignoring PEER OFFER since peer ({self}) is"
                           "not yet verified")
             return
@@ -448,24 +449,24 @@ class Peer_connection:
         if self.__peer_challenge == None:
             logging.warning("[PEER] Received PEER VERIFICATION but no PEER "
                             f"CHALLENGE was send. Disconnecting {self}")
-            self.__is_trustworthy = False
+            self.__validated_them = False
             await self.gossip.close_peer(self)
 
         (challenge, timeout) = self.__peer_challenge
         if timeout < time.time():
             logging.info("[PEER] Received PEER VERIFICATION after timeout for "
                          "challenge expired")
-            self.__is_trustworthy = False
+            self.__validated_them = False
             await self.__send_peer_validation(False)
 
         # Check if nonce is not valid
         if not valid_nonce_peer_challenge(challenge, nonce):
             logging.info("[PEER] PEER VERIFICATION contained invalid nonce")
-            self.__is_trustworthy = False
+            self.__validated_them = False
             await self.__send_peer_validation(False)
 
         # received valid verification, this peer is now trustworthy
-        self.__is_trustworthy = True
+        self.__validated_them = True
         await self.__send_peer_validation(True)
 
     def __handle_peer_validation(self, buf):
@@ -481,7 +482,7 @@ class Peer_connection:
 
         assert type(valid) is bool
         logging.info(f"[PEER] Received validation with valid = {valid}")
-        self.__is_validated = valid
+        self.__validated_us = valid
         # TODO what if we where verified but received and invalid validation
 
     def __handle_peer_info(self, buf):
@@ -559,7 +560,7 @@ async def __connect_peer(address, gossip, p2p_listening_port):
         return None
 
     await __send_peer_info(writer, p2p_listening_port)
-    return Peer_connection(reader, writer, gossip, port, is_trustworthy=True)
+    return Peer_connection(reader, writer, gossip, port, validated_them=True)
 
 
 async def __send_peer_info(writer, p2p_listening_port):
