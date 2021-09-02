@@ -26,7 +26,8 @@ def parse_arguments():
     parser = argparse.ArgumentParser(description=description)
     parser.add_argument("-p", "--path", type=str,
                         help="Path to the desired config file")
-    parser.add_argument("-v", "--verbose", type=str, dest="logging",
+    parser.add_argument("-v", "--verbose", action='store_true',
+                        dest="logging",
                         help="If set, gives more debug information")
     parser.add_argument("-f", "--logfile", type=str, dest="logfile_path",
                         help=("If this is specified, all logging will be "
@@ -36,7 +37,7 @@ def parse_arguments():
     path = args.path if args.path else "./config.ini"
     logfile = args.logfile_path if args.logfile_path else None
 
-    log_level = logging.INFO if args.logging is None else logging.DEBUG
+    log_level = logging.DEBUG if args.logging else logging.DEBUG
 
     return (path, log_level, logfile)
 
@@ -76,4 +77,7 @@ async def main():
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    try:
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        exit()
