@@ -27,12 +27,12 @@ def __check_min_connections(config):
 
 def __check_max_connections(config):
     """Checks if 
-    - max_connections > 0 
+    - max_connections >= 2 
     - max_connections >= min_connections
     """
-    if config.max_connections <= 0:
+    if config.max_connections < 2:
         raise KeyError(f"max_connections ({config.max_connections}) must be "
-                       "greater than 0")
+                       "greater than or equal to 2")
 
     if config.max_connections < config.min_connections:
         raise KeyError(f"max_connections ({config.max_connections}) must be "
