@@ -424,7 +424,7 @@ class Gossip:
         if len(self.announces_to_verify[msg_id][4]) == 0:
             (ttl, dtype, data, peer, _) = \
                 self.announces_to_verify.pop(msg_id, None)
-            peer_sample = await self.__get_peer_announce_sample(
+            peer_sample = await self.__get_peer_sample(
                 msg_id, ttl, dtype, data)
             # remove original sender from sample
             if peer in peer_sample:
@@ -435,9 +435,11 @@ class Gossip:
                 await peer.send_peer_announce(msg_id, ttl, dtype, data)
         return
 
-    async def __get_peer_announce_sample(self, packet_id, ttl, dtype, data):
-        """Gets called if you want to send a PEER_ANNOUNCE to a sample
-           of currently connected peers."""
+    async def __get_peer_sample(self, packet_id, ttl, dtype, data):
+        """Get a sample of the currently connected peers.
+
+        Returns:
+            - List of Peer_connections"""
         peers = self.pull_peers + self.push_peers
         if len(peers) < self.config.degree:
             return peers
