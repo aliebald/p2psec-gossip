@@ -357,8 +357,8 @@ class Peer_connection:
             await self.gossip.close_peer(self)
 
     async def __handle_peer_announce(self, buf):
-        """Handles a peer announce message and calls __send_peer_offer() to
-        send a response.
+        """Handles a peer announce message. Executes basic checks and then 
+        forwards it to gossip.
 
         Arguments:
         - buf (byte-object) -- received message in byte format. The type must
@@ -368,7 +368,7 @@ class Peer_connection:
         if msg == None:
             return
 
-        (size, type, id, ttl, data_type, data) = msg
+        (_, _, id, ttl, data_type, data) = msg
         await self.gossip.handle_peer_announce(id, ttl, data_type, data, self)
 
     async def __handle_peer_discovery(self, buf):
@@ -388,7 +388,7 @@ class Peer_connection:
         if (msg == None):
             return
 
-        (size, type, challenge) = msg
+        (_, _, challenge) = msg
         await self.__send_peer_offer(challenge)
 
     async def __handle_peer_offer(self, buf):
@@ -407,7 +407,7 @@ class Peer_connection:
         msg = parse_peer_offer(buf)
         if (msg == None):
             return
-        (size, type, challenge, nonce, data) = msg
+        (_, _, challenge, nonce, data) = msg
         # Check for invalid challenge
         if not self.__check_challenge(challenge):
             logging.warning("[PEER] Received invalid challenge in peer offer")
@@ -499,7 +499,7 @@ class Peer_connection:
         msg = parse_peer_info(buf)
         if msg == None:
             return
-        (size, type, port) = msg
+        (_, _, port) = msg
 
         # check if we already know the p2p_listening_port of the other peer
         if self.peer_p2p_listening_port != None:
