@@ -234,10 +234,13 @@ class Peer_connection:
         await self.__send(message)
 
     async def __send_peer_validation(self, valid):
-        """Sends a peer validation message
+        """Sends a peer validation message, updates validated_them and tells 
+        gossip that the connected peer is now considered valid.
+
         Arguments:
         - valid (bool) -- Valid bit - See project documentation
         """
+        self.__validated_them = valid
         message = pack_peer_validation(valid)
         logging.info(f"[PEER] Sending PEER VALIDATION with valid: {valid}, to:"
                      f" {self}")
@@ -449,24 +452,25 @@ class Peer_connection:
         if self.__peer_challenge == None:
             logging.warning("[PEER] Received PEER VERIFICATION but no PEER "
                             f"CHALLENGE was send. Disconnecting {self}")
-            self.__validated_them = False
             await self.gossip.close_peer(self)
+            return
 
         (challenge, timeout) = self.__peer_challenge
         if timeout < time.time():
             logging.info("[PEER] Received PEER VERIFICATION after timeout for "
                          "challenge expired")
-            self.__validated_them = False
-            await self.__send_peer_validation(False)
+            # await self.__send_peer_validation(False)  # TODO do we send this?
+            await self.gossip.close_peer(self)
+            return
 
         # Check if nonce is not valid
         if not valid_nonce_peer_challenge(challenge, nonce):
             logging.info("[PEER] PEER VERIFICATION contained invalid nonce")
-            self.__validated_them = False
-            await self.__send_peer_validation(False)
+            # await self.__send_peer_validation(False)  # TODO do we send this?
+            await self.gossip.close_peer(self)
+            return
 
         # received valid verification, this peer is now trustworthy
-        self.__validated_them = True
         await self.__send_peer_validation(True)
 
     def __handle_peer_validation(self, buf):
