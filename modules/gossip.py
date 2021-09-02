@@ -281,12 +281,12 @@ class Gossip:
             len(self.pull_peers), self.max_pull_peers))
 
     async def print_api_debug(self):
-        print("[API] connected apis: " + str(self.apis))
-        print("[API] current subscribers: " + str(self.datasubs))
-        print("[API] current routing ids: " +
-              str(list(self.peer_announce_ids.queue)))
-        print("[API] current announces to verify: " +
-              str(self.announces_to_verify))
+        logging.debug(f"[API] connected apis {self.apis}")
+        logging.debug(f"[API] current subscribers {self.datasubs}")
+        logging.debug("[API] current routing ids: " +
+                      f"{list(self.peer_announce_ids.queue)}")
+        logging.debug("[API] current announces to verify: " +
+                      f"{self.announces_to_verify}\r\n")
 
     async def add_subscriber(self, datatype, api):
         """Adds an Api_connection to the Subscriber dict (datasubs)
