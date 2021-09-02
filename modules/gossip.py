@@ -252,7 +252,8 @@ class Gossip:
                 self.__log_connected_peers()
                 # Send PeerDiscovery
                 for peer in self.__push_peers + self.__pull_peers:
-                    await peer.send_peer_discovery()
+                    if peer.is_fully_validated():
+                        await peer.send_peer_discovery()
 
             # Verify new peers
             if len(self.__unverified_peers) > 0:
@@ -355,7 +356,8 @@ class Gossip:
 
         # send PEER_ANNOUNCE on each Peer_connection
         for peer in peer_sample:
-            await peer.send_peer_announce(packet_id, ttl, dtype, data)
+            if peer.is_fully_validated():
+                await peer.send_peer_announce(packet_id, ttl, dtype, data)
         return
 
     async def handle_peer_announce(self, packet_id, ttl, dtype, data, peer):
@@ -435,7 +437,8 @@ class Gossip:
 
             # forward
             for peer in peer_sample:
-                await peer.send_peer_announce(msg_id, ttl, dtype, data)
+                if peer.is_fully_validated():
+                    await peer.send_peer_announce(msg_id, ttl, dtype, data)
         return
 
     async def __get_peer_announce_sample(self, packet_id, ttl, dtype, data):
