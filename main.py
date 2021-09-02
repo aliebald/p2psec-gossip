@@ -28,7 +28,7 @@ def parse_arguments():
                         help="Path to the desired config file")
     parser.add_argument("-v", "--verbose", action='store_true',
                         dest="logging",
-                        help="If set, gives more debug information")
+                        help="More debug information")
     parser.add_argument("-f", "--logfile", type=str, dest="logfile_path",
                         help=("If this is specified, all logging will be "
                               "written into the file at the end of this path"))
@@ -37,7 +37,9 @@ def parse_arguments():
     path = args.path if args.path else "./config.ini"
     logfile = args.logfile_path if args.logfile_path else None
 
-    log_level = logging.DEBUG if args.logging else logging.DEBUG
+    print(args.logging)
+
+    log_level = logging.DEBUG if args.logging else logging.INFO
 
     return (path, log_level, logfile)
 
