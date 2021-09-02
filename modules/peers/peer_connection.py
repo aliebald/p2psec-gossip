@@ -130,6 +130,25 @@ class Peer_connection:
         except Exception:
             return
 
+    def get_validated_them(self):
+        """Getter for validated_them. 
+        We use getter functions because validated_them should not be mutable 
+        from outside of Peer_connection"""
+        # TODO check if we need this or if is_fully_validated is enough
+        return self.__validated_them
+
+    def get_validated_us(self):
+        """Getter for validated_us. 
+        We use getter functions because validated_us should not be mutable from
+        outside of Peer_connection"""
+        # TODO check if we need this or if is_fully_validated is enough
+        return self.__validated_us
+
+    def is_fully_validated(self):
+        """Returns true if the connection validated, meaning validated_them 
+        and validated_us"""
+        return self.__validated_them and self.__validated_us
+
     def get_peer_p2p_listening_address(self):
         """Returns the address the connected peer accepts new peer connections
         on.
