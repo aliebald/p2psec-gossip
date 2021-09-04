@@ -20,10 +20,6 @@ FORMAT_GOSSIP_NOTIFY = "!HHHH"
 FORMAT_GOSSIP_NOTIFICATION = "!HHHH"
 FORMAT_GOSSIP_VALIDATION = "!HHHH"
 
-api1_correct = False
-api2_correct = False
-peer2_correct = True
-
 
 def main():
     asyncio.run(test_peer_announce())
@@ -33,6 +29,9 @@ def main():
 async def test_peer_announce():
     """This test subscribes with 2 APIs to the datatype 1 and validates with
     both after the PEER_ANNOUNCE"""
+    api1_correct = False
+    api2_correct = False
+    peer2_correct = True
     peer1 = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     peer2 = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     api1 = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -128,7 +127,34 @@ async def peer2_handler(socket):
     return
 
 
-def test_gossip_announce(): pass
+def test_gossip_announce():
+    """Test GOSSIP ANNOUNCE functionality by:
+    1. Subscribing with 2 API mocks
+    2. Add a peer mock
+    3. Sending a GOSSIP ANNOUNCE with one API
+    4. Checking if we receive it with the second
+    5. Checking if we got a PEER ANNOUNCE at the peer mock
+    """
+    peer = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    api1 = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    api2 = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+
+    # 1. Connect with both apis
+    api1.connect(('127.0.0.1', 7001))
+    api2.connect(('127.0.0.1', 7001))
+    # Subscribe to Datatype 1
+    api2.sendall()
+    # 2. Connect peer
+    peer.connect(('127.0.0.1', 6001))
+
+    # TODO Handshake
+
+    # 3. Send GOSSIP ANNOUNCE with api1
+    api1.sendall(struct.pack(pp.FORMAT_GOSSIP_ANNOUNCE, 8, pp.GOSSIP_ANNOUNCE,
+                             2, 0, 1) + b'')
+
+    # 4. Check if api2 got GOSSIP ANNOUNCE
+    # 5. Check if peer2 got peer announce
 
 
 if __name__ == "__main__":
