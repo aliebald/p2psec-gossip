@@ -166,20 +166,25 @@ class Test_config(unittest.TestCase):
 
     def __check_raises_no_exception(self):
         """Asserts that the initialization for the generated Config 
-        ("testconfig.ini") does not fail"""
+        ("autogen_testconfig.ini") does not fail"""
         try:
-            Config("testconfig.ini")
+            Config("autogen_testconfig.ini")
         except Exception as e:
             self.fail("Config raised an Exception unexpectedly")
 
     def __check_raises_valid_exception(self, exception):
         """Asserts that the initialization for the generated Config 
-        ("testconfig.ini") fails and raises the given exception with an message
+        ("autogen_testconfig.ini") fails and raises the given exception with a 
+        message
         """
         with self.assertRaises(exception) as cm:
-            Config("testconfig.ini")
+            Config("autogen_testconfig.ini")
         # Test if an error message exists
         self.assertTrue(len(str(cm.exception)) > 0)
+
+    def tearDownClass():
+        if os.path.exists("autogen_testconfig.ini"):
+            os.remove("autogen_testconfig.ini")
 
 
 def generate_test_config(
@@ -193,9 +198,9 @@ def generate_test_config(
     api_address="127.0.0.1:7001",
     known_peers="127.0.0.1:1000, 127.0.0.1:2000"
 ):
-    """Generates a config file, testconfig.ini in the current directory, for 
-    testing. Set parameters to None to not include them in the config. If all 
-    default parameters are used, the config should be valid.
+    """Generates a config file, autogen_testconfig.ini in the current directory
+    , for testing. Set parameters to None to not include them in the config. If
+    all default parameters are used, the config should be valid.
     Use delete_test_config() to delete the file after executing the tests
     """
     config = "[gossip]\n"
@@ -218,21 +223,13 @@ def generate_test_config(
     if known_peers:
         config += f"known_peers = {known_peers}\n"
 
-    f = open("testconfig.ini", "w")
+    f = open("autogen_testconfig.ini", "w")
     f.write(config)
     f.close()
 
 
-def delete_test_config():
-    """Deletes the testconfig.ini if it exists in the current folder. 
-    Use to clean up after generate_test_config"""
-    if os.path.exists("testconfig.ini"):
-        os.remove("testconfig.ini")
-
-
 def main():
     unittest.main()
-    delete_test_config()
 
 
 if __name__ == "__main__":
