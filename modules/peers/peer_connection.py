@@ -210,24 +210,17 @@ class Peer_connection:
         return addr
 
     async def send_peer_discovery(self):
-        """Sends a peer discovery message."""
-        if not self.__validated_them:
-            logging.debug("[PEER] Not sending PEER DISCOVERY connected peer "
-                          f"({self}) is not yet verified")
-            return
-
+        """Sends a peer discovery message. Assumes that the connection is 
+        validated by both sides. Use is_fully_validated to check."""
         message = pack_peer_discovery(self.__generate_challenge())
         logging.info(f"[PEER] Sending PEER DISCOVERY to: {self}")
         await self.__send(message)
 
     async def send_peer_announce(self, id, ttl, data_type, data):
         """Sends a peer announce message. For documentation of parameters, see
-        the project documentation"""
-        if not self.__validated_them:
-            logging.debug("[PEER] Not sending PEER ANNOUNCE connected peer "
-                          f"({self}) is not yet verified")
-            return
-
+        the project documentation.
+        Assumes that the connection is validated by both sides. Use 
+        is_fully_validated to check."""
         message = pack_peer_announce(id, ttl, data_type, data)
         logging.info(f"[PEER] Sending PEER ANNOUNCE with id: {id}, ttl: {ttl} "
                      f" and data type: {data_type}, to: {self}")
@@ -280,7 +273,8 @@ class Peer_connection:
         await self.__send(message)
 
     async def __send_peer_offer(self, challenge):
-        """Figures out a nonce and sends a peer offer.
+        """Figures out a nonce and sends a peer offer. Should only be called if
+        the connection is validated by both sides.
 
         Arguments:
         - challenge (int) -- challenge received from original peer discovery
@@ -348,6 +342,16 @@ class Peer_connection:
         - buf (byte-object) -- received message
         """
         type = get_header_type(buf)
+
+        # Close the connection if we do not allow this message type in the
+        # current state (regarding validated_us and validated_them)
+        if (not self.__handle_type(type)):
+            logging.debug(f"[PEER] Did not expect message of type {type} from "
+                          f"{self}. State: validated_us: {self.__validated_us}"
+                          f", validated_them: {self.__validated_them}")
+            await self.gossip.close_peer(self)
+            return
+
         if type == PEER_ANNOUNCE:
             logging.info(f"[PEER] Received PEER_ANNOUNCE from {self}")
             await self.__handle_peer_announce(buf)
@@ -375,9 +379,29 @@ class Peer_connection:
             self.__validated_them = False
             await self.gossip.close_peer(self)
 
+    def __handle_type(self, type):
+        """Checks if the given type should be handled at the moment.
+
+        If the connected node is not validated (not validated_them), only allow 
+        PEER VERIFICATION and PEER INFO.
+
+        If we are not validated by the connected node (not validated_us), only 
+        allow PEER CHALLENGE and PEER VALIDATION
+
+        If both sides are validated, allow all messages
+        """
+        case_not_validated_them = not self.__validated_them and type in [
+            PEER_VERIFICATION, PEER_INFO]
+        case_not_validated_us = not self.__validated_us and type in [
+            PEER_CHALLENGE, PEER_VALIDATION]
+
+        return ((self.__validated_them and self.__validated_us)
+                or case_not_validated_them or case_not_validated_us)
+
     async def __handle_peer_announce(self, buf):
         """Handles a peer announce message. Executes basic checks and then 
-        forwards it to gossip.
+        forwards it to gossip. Assumes that the connection is validated by both
+        sides.
 
         Arguments:
         - buf (byte-object) -- received message in byte format. The type must
@@ -392,17 +416,13 @@ class Peer_connection:
 
     async def __handle_peer_discovery(self, buf):
         """Handles a peer discovery message and calls __send_peer_offer() to
-        send a response.
+        send a response. Assumes that the connection is validated by both sides
+        .
 
         Arguments:
         - buf (byte-object) -- received message in byte format. The type must
           be PEER_DISCOVERY
         """
-        if not self.__validated_them:
-            logging.debug(
-                "[PEER] Ignoring PEER DISCOVERY since peer is not trustworthy")
-            return
-
         msg = parse_peer_discovery(buf)
         if (msg == None):
             return
@@ -412,17 +432,13 @@ class Peer_connection:
 
     async def __handle_peer_offer(self, buf):
         """Handles a peer offer message. 
-        Calls handle_peer_offer() of gossip if everything is ok.
+        Calls handle_peer_offer() of gossip if everything is ok. Assumes that 
+        the connection is validated by both sides.
 
         Arguments:
         - buf (byte-object) -- received message in byte format. The type must 
           be PEER_DISCOVERY
         """
-        if not self.__validated_them:
-            logging.debug(f"[PEER] Ignoring PEER OFFER since peer ({self}) is"
-                          "not yet verified")
-            return
-
         msg = parse_peer_offer(buf)
         if (msg == None):
             return
