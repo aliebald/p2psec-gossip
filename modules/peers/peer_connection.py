@@ -264,7 +264,7 @@ class Peer_connection:
         await self.__send(message)
         # Tell gossip that this peer is now validated, if valid
         if valid:
-            self.gossip.validate_peer(self)
+            await self.gossip.validate_peer(self)
 
     async def __send_peer_verification(self, nonce):
         """Sends a peer verification message.

@@ -8,7 +8,7 @@ import logging
 from random import (randint, sample, shuffle)
 from math import (floor, ceil)
 from time import time
-
+from collections import deque
 
 from modules.util import SetQueue
 from modules.api.api_connection import Api_connection
@@ -53,7 +53,8 @@ class Gossip:
         self.__max_push_peers = floor(self.config.max_connections / 2)
         self.__max_pull_peers = ceil(self.config.max_connections / 2)
 
-        self.__push_peers = []  # Push peers that connected to us
+        # Push peers that connected to us
+        self.__push_peers = deque(maxlen=self.__max_push_peers)
         self.__pull_peers = []  # Pull peers that we connected to
         self.__unverified_peers = []  # unverified push peers
         self.apis = []
@@ -122,22 +123,13 @@ class Gossip:
         - reader (StreamReader) -- asyncio StreamReader connected to a new peer
         - writer (StreamWriter) -- asyncio StreamWriter connected to a new peer
         """
-        # Check if we have capacity for this new push peer
-        if (len(self.__push_peers) + len(self.__unverified_peers)
-                >= self.__max_push_peers):
-            logging.debug("[PEER] Reached max push peers, ignoring new "
-                          "incoming peer")
-            writer.close()
-            await writer.wait_closed()
-            return
-
         new_peer = Peer_connection(reader, writer, self, validated_us=True)
         logging.info(f"[PEER] New unverified peer connected: {new_peer}")
 
         self.__unverified_peers.append(new_peer)
         asyncio.create_task(new_peer.run())
 
-    def validate_peer(self, peer):
+    async def validate_peer(self, peer):
         """Removes the given peer from the unverified_peers list and adds it to
         push_peers"""
         if peer not in self.__unverified_peers:
@@ -146,7 +138,14 @@ class Gossip:
             return
 
         self.__unverified_peers.remove(peer)
-        self.__push_peers.append(peer)
+        # Dosconnect the oldest push peer if we reached max_push_peers
+        if len(self.__push_peers) >= self.__max_push_peers:
+            oldest_peer = self.__push_peers.pop()
+            logging.debug(
+                f"Disconnecting {oldest_peer}, because max_push_peers "
+                f"({self.__max_push_peers}) is reached")
+            await self.close_peer(oldest_peer)
+        self.__push_peers.appendleft(peer)
 
     async def handle_peer_offer(self, peer_addresses):
         """Offers peer_addresses to this gossip class. Gets called after a peer
@@ -167,7 +166,8 @@ class Gossip:
 
         logging.info(f"[PEER] Offer contained: {peer_addresses}")
         # remove already connected peers
-        all_peers = self.__push_peers+self.__pull_peers+self.__unverified_peers
+        all_peers = list(self.__push_peers) + \
+            self.__pull_peers + self.__unverified_peers
         connected = self.get_peer_addresses(all_peers)
         candidates = list(filter(lambda x: x not in connected, peer_addresses))
 
@@ -208,7 +208,7 @@ class Gossip:
             List of strings with format: <host_ip>:<port>
         """
         peers = (peerlist if peerlist != None
-                 else self.__push_peers + self.__pull_peers)
+                 else list(self.__push_peers) + self.__pull_peers)
 
         addresses = []
         for peer in peers:
@@ -254,7 +254,7 @@ class Gossip:
                 logging.info("[PEER] Looking for new Peers")
                 self.__log_connected_peers()
                 # Send PeerDiscovery
-                for peer in self.__push_peers + self.__pull_peers:
+                for peer in list(self.__push_peers) + self.__pull_peers:
                     if peer.is_fully_validated():
                         await peer.send_peer_discovery()
 
@@ -372,7 +372,7 @@ class Gossip:
         # Choose degree peers randomly
         # TODO: if peers < degree, choose all peers
         try:
-            peers = self.__pull_peers + self.__push_peers
+            peers = self.__pull_peers + list(self.__push_peers)
             peer_sample = sample(peers, self.config.degree)
         except ValueError:
             peer_sample = []
@@ -467,7 +467,7 @@ class Gossip:
     async def __get_peer_announce_sample(self, packet_id, ttl, dtype, data):
         """Gets called if you want to send a PEER_ANNOUNCE to a sample
            of currently connected peers."""
-        peers = self.__pull_peers + self.__push_peers
+        peers = self.__pull_peers + list(self.__push_peers)
         if len(peers) < self.config.degree:
             return peers
         return sample(peers, self.config.degree)
