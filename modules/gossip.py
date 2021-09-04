@@ -230,8 +230,8 @@ class Gossip:
             # It can happen that the peer is not in any of the above lists, e.g.
             # when a connection is closed directly after establishing it in the
             # Peer_connection factory
-            logging.debug("The Peer that should be closed was not found in"
-                          "push_peers, pull_peers or unverified_peers")
+            logging.debug("[PEER] The Peer that should be closed was not found"
+                          " in push_peers, pull_peers or unverified_peers")
 
         await peer.close()
         self.__log_connected_peers()
