@@ -435,7 +435,7 @@ class Gossip:
                 await peer.send_peer_announce(msg_id, ttl, dtype, data)
         return
 
-    async def __get_peer_sample(self, packet_id, ttl, dtype, data):
+    async def __get_peer_sample(self):
         """Get a sample of the currently connected peers.
 
         Returns:
