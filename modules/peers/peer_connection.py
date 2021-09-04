@@ -7,7 +7,7 @@ import asyncio
 import time
 from random import getrandbits
 
-from modules.pow_producer import (
+from modules.util import (
     produce_pow_peer_challenge,
     produce_pow_peer_offer,
     valid_nonce_peer_challenge,
