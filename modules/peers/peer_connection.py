@@ -144,6 +144,11 @@ class Peer_connection:
         # TODO check if we need this or if is_fully_validated is enough
         return self.__validated_us
 
+    def get_peer_challenge(self):
+        """Returns the peer challenge send to the connected peer together with 
+        its timeout, or None if none was send"""
+        return self.__peer_challenge
+
     def is_fully_validated(self):
         """Returns true if the connection validated, meaning validated_them 
         and validated_us"""

@@ -7,6 +7,8 @@ import asyncio
 import logging
 from random import (randint, sample, shuffle)
 from math import (floor, ceil)
+from time import time
+
 
 from modules.util import SetQueue
 from modules.api.api_connection import Api_connection
@@ -97,6 +99,7 @@ class Gossip:
                       .format(api_host, api_port))
 
         asyncio.create_task(self.__run_peer_control())
+        asyncio.create_task(self.__run_verifier())
 
         # Start active peers
         for peer in self.__pull_peers:
@@ -255,13 +258,33 @@ class Gossip:
                     if peer.is_fully_validated():
                         await peer.send_peer_discovery()
 
-            # Verify new peers
+            await asyncio.sleep(self.config.search_cooldown)
+
+    async def __run_verifier(self):
+        """Sends out peer challenge to all unverified peers in a regular
+        intervall"""
+        while True:
             if len(self.__unverified_peers) > 0:
+                await self.__clean_unverified_peers()
                 # TODO handle case: more peers than excepted
+
                 for peer in self.__unverified_peers:
                     await peer.send_peer_challenge()
 
+            # TODO how long do we sleep?
             await asyncio.sleep(self.config.search_cooldown)
+
+    async def __clean_unverified_peers(self):
+        """Goes through unverified_peers and closes all connections where a 
+        PEER CHALLENGE was send and the timeout expired"""
+        for peer in self.__unverified_peers:
+            peer_challenge = peer.get_peer_challenge()
+            current_time = time()
+            if peer_challenge != None and peer_challenge[1] < current_time:
+                # Challenge exists but is timeouted, close connection
+                logging.debug(f"[PEER] PEER CHALLENGE Timeout for {peer} "
+                              f"expired {current_time-peer_challenge[1]}s ago")
+                await self.close_peer(peer)
 
     async def print_gossip_debug(self):
         self.__log_connected_peers()
