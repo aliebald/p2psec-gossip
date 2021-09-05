@@ -263,7 +263,7 @@ class Gossip:
             await asyncio.sleep(self.config.search_cooldown)
 
     def print_gossip_debug(self):
-    """Prints all Gossip class variables"""
+        """Prints all Gossip class variables"""
         # logging.debug(f"[PEER] connected peers: {self.peers}") # TODO fix
         logging.debug(f"[API] connected apis {self.apis}")
         logging.debug(f"[API] current subscribers {self.datasubs}")
@@ -282,7 +282,7 @@ class Gossip:
             len(self.pull_peers), self.max_pull_peers))
 
     def print_api_debug(self):
-    """Prints all Gossip class variables for API functionality"""
+        """Prints all Gossip class variables for API functionality"""
         logging.debug(f"[API] connected apis {self.apis}")
         logging.debug(f"[API] current subscribers {self.datasubs}")
         logging.debug("[API] current routing ids: " +
