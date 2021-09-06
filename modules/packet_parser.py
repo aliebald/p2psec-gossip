@@ -462,8 +462,6 @@ def pack_peer_challenge(challenge):
         - buf (byte-object b'...')
           or
         - None (Error, int too big)"""
-    if challenge > 18446744073709551615:  # (2**64)-1
-        return None
     return pack(FORMAT_PEER_CHALLENGE, 12, PEER_CHALLENGE, challenge)
 
 
@@ -475,8 +473,6 @@ def pack_peer_verification(nonce):
         - buf (byte-object b'...')
           or
         - None (Error, int too big)"""
-    if nonce > 18446744073709551615:  # (2**64)-1
-        return None
     return pack(FORMAT_PEER_VERIFICATION, 12, PEER_VERIFICATION, nonce)
 
 
