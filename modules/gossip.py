@@ -346,6 +346,7 @@ class Gossip:
 
         # Choose degree peers randomly
         # TODO: if peers < degree, choose all peers
+        # TODO: if Block, delete try catch
         try:
             peers = self.pull_peers + self.push_peers
             peer_sample = sample(peers, self.config.degree)
@@ -426,8 +427,7 @@ class Gossip:
         if len(self.announces_to_verify[msg_id][4]) == 0:
             (ttl, dtype, data, peer, _) = \
                 self.announces_to_verify.pop(msg_id, None)
-            peer_sample = await self.__get_peer_sample(
-                msg_id, ttl, dtype, data)
+            peer_sample = await self.__get_peer_sample()
             # remove original sender from sample
             if peer in peer_sample:
                 peer_sample.remove(peer)
