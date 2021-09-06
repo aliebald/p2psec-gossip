@@ -87,10 +87,10 @@ def parse_gossip_announce(buf):
            tuple (ttl, datatype, data )
            as    (int, int     , bytes)
 
-           tuple (): Error"""
+           or None if an error occurred"""
     # check header: size
     if not(__check_size(buf)):
-        return ()
+        return None
 
     try:
         packet_no_data = unpack(FORMAT_GOSSIP_ANNOUNCE, buf[:8])
@@ -100,9 +100,9 @@ def parse_gossip_announce(buf):
             #      ttl,                dtype,              data
             return (packet_no_data[2], packet_no_data[4]) + data
         else:
-            return ()
+            return None
     except error:
-        return ()
+        return None
 
 
 def parse_gossip_notify(buf):
@@ -115,14 +115,14 @@ def parse_gossip_notify(buf):
        Returns:
            datatype as int
 
-           Error as tuple ()"""
+           or None if an error occurred"""
 
     # check header: size
     if not(__check_size(buf)):
-        return ()
+        return None
     # check: no data present
     if __get_header_size(buf) != 8:
-        return ()
+        return None
 
     try:
         packet_tuple = unpack(FORMAT_GOSSIP_NOTIFY, buf)
@@ -132,9 +132,9 @@ def parse_gossip_notify(buf):
             datatype = packet_tuple[3]
             return datatype
         else:
-            return ()
+            return None
     except error:
-        return ()
+        return None
 
 
 def parse_gossip_notification(buf):
@@ -148,10 +148,10 @@ def parse_gossip_notification(buf):
            body as tuple  (msg_id, datatype, data )
                           (int   , int     , bytes)
 
-           Error as tuple ()"""
+           or None if an error occurred"""
     # check header: size
     if not(__check_size(buf)):
-        return ()
+        return None
 
     try:
         packet_tuple_no_data = unpack(FORMAT_GOSSIP_NOTIFICATION, buf[:8])
@@ -162,9 +162,9 @@ def parse_gossip_notification(buf):
             stripped_packet = packet_tuple_no_data[2:]
             return stripped_packet + data
         else:
-            return ()
+            return None
     except error:
-        return ()
+        return None
 
 
 def parse_gossip_validation(buf):
@@ -178,10 +178,10 @@ def parse_gossip_validation(buf):
            body as tuple  (msg_id, V   )
                           (int   , bool)
 
-           Error as tuple ()"""
+           or None if an error occurred"""
     # check header: size
     if not(__check_size(buf)):
-        return ()
+        return None
 
     try:
         packet_tuple = unpack(FORMAT_GOSSIP_VALIDATION, buf[:8])
@@ -190,14 +190,14 @@ def parse_gossip_validation(buf):
             # (msg_id, int)
             packet_tuple_stripped = packet_tuple[2:]
             if packet_tuple_stripped[1] > 1:
-                return ()
+                return None
             else:
                 return (packet_tuple_stripped[0],
                         packet_tuple_stripped[1] == 1)
         else:
-            return ()
+            return None
     except error:
-        return ()
+        return None
 
 
 def build_gossip_notification(msg_id, datatype, data):
