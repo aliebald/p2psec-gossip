@@ -471,7 +471,7 @@ def pack_peer_challenge(challenge):
     """Builds a PEER_CHALLENGE packet.
 
     Arguments:
-        - challenge (int)
+    - challenge (int)
 
     Returns: buffer (byte-object)
     """
@@ -482,7 +482,7 @@ def pack_peer_verification(nonce):
     """Builds a PEER_VERIFICATION packet.
 
     Arguments:
-        - nonce (int)
+    - nonce (int)
 
     Returns: buffer (byte-object)
     """
@@ -493,7 +493,7 @@ def pack_peer_validation(valid):
     """Builds a PEER_VALIDATION packet.
 
     Arguments:
-        - valid (boolean)
+    - valid (boolean)
 
     Returns: buffer (byte-object b'...')"""
     if valid:
