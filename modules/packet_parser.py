@@ -2,6 +2,7 @@
     The goal is to provide one place for packet parsing safety
 """
 
+import logging
 from struct import pack, unpack, error
 
 GOSSIP_ANNOUNCE = 500
@@ -35,25 +36,25 @@ FORMAT_PEER_VALIDATION = "!HHHH"
 
 def __get_header_size(buf):
     """Returns the size in the packet header
-       [!] no checks as this is module intern
+    [!] no checks as this is module intern
 
-       Arguments:
-           buf -- packet as byte-object
+    Arguments:
+    - buf -- packet as byte-object
 
-       Returns:
-           int"""
+    Returns:
+        header size (int)
+    """
     return int.from_bytes(buf[:2], "big")
 
 
 def get_header_type(buf):
     """Returns the type in the packet header
 
-       Arguments:
-           buf -- packet as byte-object
+    Arguments:
+    - buf -- packet as byte-object
 
-       Returns:
-           500-503 :
-           -1      : header too small!"""
+    Returns: -1 if header too small, otherwise header type (int)
+    """
     # this method can get called from modules, so check for header correctness
     if len(buf) < 4:
         return -1
@@ -62,13 +63,13 @@ def get_header_type(buf):
 
 
 def __check_size(buf):
-    """ Compares the packet size to the size given in the header.
+    """Compares the packet size to the size given in the header.
 
     Arguments:
-        buf -- packet as byte-object
+    - buf -- packet as byte-object
 
-    Returns:
-        bool"""
+    Returns: True if size in packet header is equal to packet size
+    """
     return len(buf) == __get_header_size(buf)
 
 
@@ -78,138 +79,151 @@ def __check_size(buf):
 
 def parse_gossip_announce(buf):
     """Checks the header, strips it and returns the body as a 3-tuple
-       [!] Does not check for any correctness in the body fields!
+    [!] Does not check for any correctness in the body fields!
 
-       Arguments:
-           buf -- packet as byte-object
+    Arguments:
+    - buf -- packet as byte-object
 
-       Returns:
-           tuple (ttl, datatype, data )
-           as    (int, int     , bytes)
-
-           or None if an error occurred"""
+    Returns:
+    - None if an error occurres
+    - tuple (ttl, datatype, data )
+      as    (int, int     , bytes)
+    """
     # check header: size
-    if not(__check_size(buf)):
+    if not __check_size(buf):
+        logging.debug(
+            "[PARSER] Incorrect packet size in parse_gossip_announce")
         return None
 
     try:
-        packet_no_data = unpack(FORMAT_GOSSIP_ANNOUNCE, buf[:8])
-        data = (buf[8:],)
-
-        if packet_no_data[1] == GOSSIP_ANNOUNCE:
-            #      ttl,                dtype,              data
-            return (packet_no_data[2], packet_no_data[4]) + data
-        else:
-            return None
-    except error:
+        (_, type, ttl, _, datatype) = unpack(FORMAT_GOSSIP_ANNOUNCE, buf[:8])
+    except error as e:
+        logging.debug("[PARSER] Struct parsing error in parse_gossip_announce."
+                      f" Error: {e}")
         return None
+
+    if type != GOSSIP_ANNOUNCE:
+        logging.debug(f"[PARSER] Expected type {GOSSIP_ANNOUNCE} but got "
+                      f"{type} in parse_gossip_announce")
+        return None
+
+    data = (buf[8:],)
+    return (ttl, datatype) + data
 
 
 def parse_gossip_notify(buf):
     """Parses a GOSSIP NOTIFY to a human-readable 1-tuple
-       [!] Does not check for any correctness in the body fields!
+    [!] Does not check for any correctness in the body fields!
 
-       Arguments:
-           buf -- packet as byte-object
+    Arguments:
+    - buf -- packet as byte-object
 
-       Returns:
-           datatype as int
-
-           or None if an error occurred"""
-
-    # check header: size
-    if not(__check_size(buf)):
+    Returns: datatype (int) or None if an error occurred
+    """
+    if not __check_size(buf):
+        logging.debug(
+            "[PARSER] Incorrect packet size in parse_gossip_notification")
         return None
+
     # check: no data present
     if __get_header_size(buf) != 8:
+        logging.debug("[PARSER] Gossip notify packet is missing data")
         return None
 
     try:
-        packet_tuple = unpack(FORMAT_GOSSIP_NOTIFY, buf)
-
-        if packet_tuple[1] == GOSSIP_NOTIFY:
-            # strip header
-            datatype = packet_tuple[3]
-            return datatype
-        else:
-            return None
-    except error:
+        (_, type, _, datatype) = unpack(FORMAT_GOSSIP_NOTIFY, buf)
+    except error as e:
+        logging.debug("[PARSER] Struct parsing error in parse_gossip_notify. "
+                      f"Error: {e}")
         return None
+
+    if type != GOSSIP_NOTIFY:
+        logging.debug(f"[PARSER] Expected type {GOSSIP_NOTIFY} but got "
+                      f"{type} in parse_gossip_notify")
+        return None
+
+    return datatype
 
 
 def parse_gossip_notification(buf):
     """Parses a GOSSIP NOTIFICATION to a human-readable 6-tuple
-       [!] Does not check for any correctness in the body fields!
+    [!] Does not check for any correctness in the body fields!
 
-       Arguments:
-           buf -- packet as byte-object
+    Arguments:
+        buf -- packet as byte-object
 
-       Returns:
-           body as tuple  (msg_id, datatype, data )
-                          (int   , int     , bytes)
-
-           or None if an error occurred"""
+    Returns:
+    - None if an error occurres
+    - tuple (msg_id, datatype, data )
+         as (int   , int     , bytes)
+    """
     # check header: size
-    if not(__check_size(buf)):
+    if not __check_size(buf):
+        logging.debug(
+            "[PARSER] Incorrect packet size in parse_gossip_notification")
         return None
 
     try:
-        packet_tuple_no_data = unpack(FORMAT_GOSSIP_NOTIFICATION, buf[:8])
-        data = (buf[8:],)
-        # check msg_type
-        if packet_tuple_no_data[1] == GOSSIP_NOTIFICATION:
-            # strip header
-            stripped_packet = packet_tuple_no_data[2:]
-            return stripped_packet + data
-        else:
-            return None
-    except error:
+        (_, type, id, datatype) = unpack(FORMAT_GOSSIP_NOTIFICATION, buf[:8])
+    except error as e:
+        logging.debug("[PARSER] Struct parsing error in "
+                      f"parse_gossip_notification. Error: {e}")
         return None
+
+    if type != GOSSIP_NOTIFICATION:
+        logging.debug(f"[PARSER] Expected type {GOSSIP_NOTIFICATION} but got "
+                      f"{type} in parse_gossip_notification")
+        return None
+
+    data = (buf[8:],)
+    return (id, datatype) + data
 
 
 def parse_gossip_validation(buf):
     """Parses a GOSSIP VALIDATION to a human-readable 6-tuple
-       [!] Does not check for any correctness in the body fields!
 
-       Arguments:
-           buf -- packet as byte-object
+    Arguments:
+        buf -- packet as byte-object
 
-       Returns:
-           body as tuple  (msg_id, V   )
-                          (int   , bool)
-
-           or None if an error occurred"""
+    Returns:
+    - None if an error occurres
+    - tuple (msg_id, valid)
+      as    (int,    bool)
+    """
     # check header: size
-    if not(__check_size(buf)):
+    if not __check_size(buf):
+        logging.debug(
+            "[PARSER] Incorrect packet size in parse_gossip_validation")
         return None
 
     try:
-        packet_tuple = unpack(FORMAT_GOSSIP_VALIDATION, buf[:8])
-        if packet_tuple[1] == GOSSIP_VALIDATION:
-            # strip header
-            # (msg_id, int)
-            packet_tuple_stripped = packet_tuple[2:]
-            if packet_tuple_stripped[1] > 1:
-                return None
-            else:
-                return (packet_tuple_stripped[0],
-                        packet_tuple_stripped[1] == 1)
-        else:
-            return None
-    except error:
+        # TODO reserved and valid is merged, separate according to protocol
+        (_, type, id, valid) = unpack(FORMAT_GOSSIP_VALIDATION, buf[:8])
+    except error as e:
+        logging.debug("[PARSER] Struct parsing error in "
+                      f"parse_gossip_validation. Error: {e}")
         return None
+
+    if type != GOSSIP_VALIDATION:
+        logging.debug(f"[PARSER] Expected type {GOSSIP_VALIDATION} but got "
+                      f"{type} in parse_gossip_validation")
+        return None
+
+    return (id, valid == 1)
 
 
 def build_gossip_notification(msg_id, datatype, data):
-    """Builds a GOSSIP_NOTIFICATION packet as a byte object from arguments
+    """Builds a gossip notification packet as a byte object from arguments
 
     Arguments:
-        int   , int     , byte
-        msg_id, datatype, data
+    - msg_id (int) -- message id
+    - datatype (int)
+    - data (byte-object)
 
     Returns:
-        message as byte-object b'...'
-        or none if error"""
+    - None if an error occurres
+    - message as byte-object
+    """
 
     if msg_id >= 2**16 or msg_id < 0:
         return None
@@ -241,20 +255,22 @@ def parse_peer_announce(buf):
     - buf (byte-object) -- packet
 
     Returns:
-        None if an error occurred, otherwise:
-        tuple (id,  ttl, data_type, data)
-        as    (int, int, int,       byte-object)
+    - None if an error occurred, otherwise:
+    - tuple (id,  ttl, data_type, data)
+      as    (int, int, int,       byte-object)
     """
     # check header: size
     if not __check_size(buf):
-        print("Incorrect packet size in parse_peer_announce!")
+        logging.debug("[PARSER] Incorrect packet size in parse_peer_announce")
         return None
 
     try:
         (_, _, id, ttl, _, data_type) = unpack(FORMAT_PEER_ANNOUNCE, buf[:16])
-    except error:
-        print("Struct parsing error in parse_peer_announce!")
+    except error as e:
+        logging.debug("[PARSER] Struct parsing error in parse_peer_announce. "
+                      f"Error: {e}")
         return None
+
     return (id, ttl, data_type, buf[16:])
 
 
@@ -266,20 +282,21 @@ def parse_peer_discovery(buf):
     Arguments:
     - buf (byte-object) -- packet
 
-    Returns:
-        None if an error occurred, otherwise:
-        challenge (int)
+    Returns: challenge (int) or None if an error occurred
     """
     # check header: size
     if not __check_size(buf):
-        print("Incorrect packet size in parse_peer_discovery!")
+        logging.debug(
+            "[PARSER] Incorrect packet size in parse_peer_discovery")
         return None
 
     try:
         (_, _, challenge) = unpack(FORMAT_PEER_DISCOVERY, buf)
-    except error:
-        print("Struct parsing error in parse_peer_discovery!")
+    except error as e:
+        logging.debug("[PARSER] Struct parsing error in parse_peer_discovery. "
+                      f"Error: {e}")
         return None
+
     return challenge
 
 
@@ -292,20 +309,22 @@ def parse_peer_offer(buf):
     - buf (byte-object) -- packet
 
     Returns:
-        None if an error occurred, otherwise:
-        tuple (challenge, nonce, data)
-        as    (int,       int,   str list)
+    - None if an error occurred, otherwise:
+    - tuple (challenge, nonce, data)
+      as    (int,       int,   str list)
     """
     # check header: size
     if not __check_size(buf):
-        print("Incorrect packet size in parse_peer_offer!")
+        logging.debug("[PARSER] Incorrect packet size in parse_peer_offer")
         return None
 
     try:
         (_, _, challenge, nonce) = unpack(FORMAT_PEER_OFFER, buf[:20])
-    except error:
-        print("Struct parsing error in parse_peer_offer!")
+    except error as e:
+        logging.debug("[PARSER] Struct parsing error in parse_peer_offer. "
+                      f"Error: {e}")
         return None
+
     data = (buf[20:].decode("utf-8").split(","),)
     return (challenge, nonce) + data
 
@@ -318,20 +337,20 @@ def parse_peer_info(buf):
     Arguments:
     - buf (byte-object) -- packet
 
-    Returns:
-        None if an error occurred, otherwise:
-        port (int)
+    Returns: port (int) or None if an error occurred
     """
     # check header: size
     if not __check_size(buf):
-        print("Incorrect packet size in parse_peer_info!")
+        logging.debug("[PARSER] Incorrect packet size in parse_peer_info")
         return None
 
     try:
         (_, _, _, port) = unpack(FORMAT_PEER_INFO, buf)
-    except error:
-        print("Struct parsing error in parse_peer_offer!")
+    except error as e:
+        logging.debug("[PARSER] Struct parsing error in parse_peer_info. "
+                      f"Error: {e}")
         return None
+
     return port
 
 
@@ -343,49 +362,48 @@ def parse_peer_challenge(buf):
     Arguments:
     - buf (byte-object) -- packet
 
-    Returns:
-    - challenge (int)
-      or
-    - None (Error)"""
-
+    Returns: challenge (int) or None if an error occurred
+    """
     if not __check_size(buf):
+        logging.debug("[PARSER] Incorrect packet size in parse_peer_challenge")
         return None
+
     (_, _, challenge) = unpack(FORMAT_PEER_CHALLENGE, buf)
     return challenge
 
 
 def parse_peer_verification(buf):
     """Reads a PEER_VERIFICATION by checking the header and returning the
-    nonce
-    Assumes that the message type is PEER_VERIFICATION.
+    nonce. Assumes that the message type is PEER_VERIFICATION.
 
     Arguments:
     - buf (byte-object) -- packet
 
-    Returns:
-    - nonce (byte-object)
-      or
-    - None (Error)"""
+    Returns: nonce (byte-object) or None if an error occurred
+    """
     if not __check_size(buf):
+        logging.debug(
+            "[PARSER] Incorrect packet size in parse_peer_verification")
         return None
+
     (_, _, nonce) = unpack(FORMAT_PEER_VERIFICATION, buf)
     return nonce
 
 
 def parse_peer_validation(buf):
     """Reads a PEER_VALIDATION by checking the header and returning the
-    bit field as a boolean
-    Assumes that the message type is PEER_VALIDATION.
+    bit field as a boolean. Assumes that the message type is PEER_VALIDATION.
 
     Arguments:
     - buf (byte-object) -- packet
 
-    Returns:
-    - valid (boolean)
-      or
-    - None (Error)"""
+    Returns: valid (boolean) or None if an error occurred
+    """
     if not __check_size(buf):
+        logging.debug(
+            "[PARSER] Incorrect packet size in parse_peer_validation")
         return None
+
     (_, _, _, valid) = unpack(FORMAT_PEER_VALIDATION, buf)
     return valid == 1
 
@@ -400,8 +418,8 @@ def pack_peer_announce(id, ttl, data_type, data):
     - data_type (int)
     - data (byte-object)
 
-    Returns:
-        packet as byte-object
+    Returns: 
+      packet as byte-object
     """
     size = 16 + len(data)
     buf = pack(FORMAT_PEER_ANNOUNCE, size, PEER_ANNOUNCE,
@@ -415,8 +433,7 @@ def pack_peer_discovery(challenge):
     Arguments:
     - challenge (int) -- challenge for peer offer response.
 
-    Returns:
-        packet as byte-object
+    Returns: packet as byte-object
     """
     buf = pack(FORMAT_PEER_DISCOVERY, 12, PEER_DISCOVERY, challenge)
     return buf
@@ -429,8 +446,7 @@ def pack_peer_offer(challenge, nonce, data):
     - challenge (int) -- challenge received from original peer discovery.
     - nonce (int) -- nonce according to documentation
 
-    Returns:
-        packet as byte-object
+    Returns: packet as byte-object
     """
     data_bytes = (",".join(data)).encode("utf-8")
     size = 20 + len(data_bytes)
@@ -445,8 +461,7 @@ def pack_peer_info(p2p_listening_port):
     - p2p_listening_port (int) -- Port this peer accepts new peer connections
       at
 
-    Returns:
-        peer info packet as byte-object
+    Returns: peer info packet as byte-object
     """
     buf = pack(FORMAT_PEER_INFO, 8, PEER_INFO, 0, p2p_listening_port)
     return buf
@@ -454,32 +469,33 @@ def pack_peer_info(p2p_listening_port):
 
 def pack_peer_challenge(challenge):
     """Builds a PEER_CHALLENGE packet.
+
     Arguments:
         - challenge (int)
-    Returns:
-        - buf (byte-object b'...')
-          or
-        - None (Error, int too big)"""
+
+    Returns: buffer (byte-object)
+    """
     return pack(FORMAT_PEER_CHALLENGE, 12, PEER_CHALLENGE, challenge)
 
 
 def pack_peer_verification(nonce):
     """Builds a PEER_VERIFICATION packet.
+
     Arguments:
         - nonce (int)
-    Returns:
-        - buf (byte-object b'...')
-          or
-        - None (Error, int too big)"""
+
+    Returns: buffer (byte-object)
+    """
     return pack(FORMAT_PEER_VERIFICATION, 12, PEER_VERIFICATION, nonce)
 
 
 def pack_peer_validation(valid):
     """Builds a PEER_VALIDATION packet.
+
     Arguments:
         - valid (boolean)
-    Returns:
-        - buf (byte-object b'...')"""
+
+    Returns: buffer (byte-object b'...')"""
     if valid:
         bit = 1
     else:
