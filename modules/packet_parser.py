@@ -235,14 +235,15 @@ def build_gossip_notification(msg_id, datatype, data):
 def parse_peer_announce(buf):
     """Parses a peer announce message to a human-readable tuple
     [!] Does (currently) not check for any correctness in the body fields!
+    Assumes that the message type is PEER_ANNOUNCE.
 
     Arguments:
     - buf (byte-object) -- packet
 
     Returns:
         None if an error occurred, otherwise:
-        tuple (size, type, id,  ttl, data_type, data)
-        as    (int,  int,  int, int, int,       byte-object)
+        tuple (id,  ttl, data_type, data)
+        as    (int, int, int,       byte-object)
     """
     # check header: size
     if not __check_size(buf):
@@ -250,25 +251,24 @@ def parse_peer_announce(buf):
         return None
 
     try:
-        (size, type, id, ttl, reserved, data_type) = unpack(
-            FORMAT_PEER_ANNOUNCE, buf[:16])
-        return (size, type, id, ttl, data_type, buf[16:])
+        (_, _, id, ttl, _, data_type) = unpack(FORMAT_PEER_ANNOUNCE, buf[:16])
     except error:
         print("Struct parsing error in parse_peer_announce!")
         return None
+    return (id, ttl, data_type, buf[16:])
 
 
 def parse_peer_discovery(buf):
     """Parses a peer discovery message to a human-readable tuple
     [!] Does (currently) not check for any correctness in the body fields!
+    Assumes that the message type is PEER_DISCOVERY.
 
     Arguments:
     - buf (byte-object) -- packet
 
     Returns:
         None if an error occurred, otherwise:
-        tuple (size, type, challenge)
-        as    (int,  int,  int)
+        challenge (int)
     """
     # check header: size
     if not __check_size(buf):
@@ -276,24 +276,25 @@ def parse_peer_discovery(buf):
         return None
 
     try:
-        package = unpack(FORMAT_PEER_DISCOVERY, buf)
-        return package
+        (_, _, challenge) = unpack(FORMAT_PEER_DISCOVERY, buf)
     except error:
         print("Struct parsing error in parse_peer_discovery!")
         return None
+    return challenge
 
 
 def parse_peer_offer(buf):
     """Parses a peer offer message to a human-readable tuple
     [!] Does (currently) not check for any correctness in the body fields!
+    Assumes that the message type is PEER_OFFER.
 
     Arguments:
     - buf (byte-object) -- packet
 
     Returns:
         None if an error occurred, otherwise:
-        tuple (size, type, challenge, nonce, data)
-        as    (int,  int,  int,       int,   str list)
+        tuple (challenge, nonce, data)
+        as    (int,       int,   str list)
     """
     # check header: size
     if not __check_size(buf):
@@ -301,25 +302,25 @@ def parse_peer_offer(buf):
         return None
 
     try:
-        packet_no_data = unpack(FORMAT_PEER_OFFER, buf[:20])
-        data = (buf[20:].decode("utf-8").split(","),)
-        return packet_no_data + data
+        (_, _, challenge, nonce) = unpack(FORMAT_PEER_OFFER, buf[:20])
     except error:
         print("Struct parsing error in parse_peer_offer!")
         return None
+    data = (buf[20:].decode("utf-8").split(","),)
+    return (challenge, nonce) + data
 
 
 def parse_peer_info(buf):
     """Parses a peer info message to a human-readable tuple
     [!] Does (currently) not check for any correctness in the body fields!
+    Assumes that the message type is PEER_INFO.
 
     Arguments:
     - buf (byte-object) -- packet
 
     Returns:
         None if an error occurred, otherwise:
-        tuple (size, type, p2p_listening_port)
-        as    (int,  int,  int,)
+        port (int)
     """
     # check header: size
     if not __check_size(buf):
@@ -327,16 +328,17 @@ def parse_peer_info(buf):
         return None
 
     try:
-        (size, type, reserved, port) = unpack(FORMAT_PEER_INFO, buf)
-        return (size, type, port)
+        (_, _, _, port) = unpack(FORMAT_PEER_INFO, buf)
     except error:
         print("Struct parsing error in parse_peer_offer!")
         return None
+    return port
 
 
 def parse_peer_challenge(buf):
-    """Reads a PEER_CHALLENGE by checking the header and returning the
-       challenge
+    """Reads a PEER_CHALLENGE by checking the header and returning the 
+    challenge
+    Assumes that the message type is PEER_CHALLENGE.
 
     Arguments:
     - buf (byte-object) -- packet
@@ -348,15 +350,14 @@ def parse_peer_challenge(buf):
 
     if not __check_size(buf):
         return None
-    if not get_header_type(buf) == PEER_CHALLENGE:
-        return None
     (_, _, challenge) = unpack(FORMAT_PEER_CHALLENGE, buf)
     return challenge
 
 
 def parse_peer_verification(buf):
     """Reads a PEER_VERIFICATION by checking the header and returning the
-       nonce
+    nonce
+    Assumes that the message type is PEER_VERIFICATION.
 
     Arguments:
     - buf (byte-object) -- packet
@@ -367,15 +368,14 @@ def parse_peer_verification(buf):
     - None (Error)"""
     if not __check_size(buf):
         return None
-    if not get_header_type(buf) == PEER_VERIFICATION:
-        return None
     (_, _, nonce) = unpack(FORMAT_PEER_VERIFICATION, buf)
     return nonce
 
 
 def parse_peer_validation(buf):
     """Reads a PEER_VALIDATION by checking the header and returning the
-       bit field as a boolean
+    bit field as a boolean
+    Assumes that the message type is PEER_VALIDATION.
 
     Arguments:
     - buf (byte-object) -- packet
@@ -385,8 +385,6 @@ def parse_peer_validation(buf):
       or
     - None (Error)"""
     if not __check_size(buf):
-        return None
-    if not get_header_type(buf) == PEER_VALIDATION:
         return None
     (_, _, _, valid) = unpack(FORMAT_PEER_VALIDATION, buf)
     return valid == 1
