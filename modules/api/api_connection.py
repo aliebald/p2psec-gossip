@@ -4,14 +4,14 @@ This Module provides the Api_connection class
 import logging
 import hexdump
 from modules.packet_parser import (
-        GOSSIP_ANNOUNCE,
-        GOSSIP_NOTIFY,
-        GOSSIP_VALIDATION,
-        get_header_type,
-        parse_gossip_announce,
-        parse_gossip_notify,
-        parse_gossip_validation,
-        build_gossip_notification
+    GOSSIP_ANNOUNCE,
+    GOSSIP_NOTIFY,
+    GOSSIP_VALIDATION,
+    get_header_type,
+    parse_gossip_announce,
+    parse_gossip_notify,
+    parse_gossip_validation,
+    build_gossip_notification
 )
 
 
@@ -105,7 +105,7 @@ class Api_connection:
 
     async def __handle_gossip_announce(self, buf):
         tmp = parse_gossip_announce(buf)
-        if tmp == ():
+        if tmp == None:
             logging.info(f"[API] Disconnecting API user {self} -" +
                          "GOSSIP_ANNOUNCE malformed")
             await self.gossip.close_api(self)
