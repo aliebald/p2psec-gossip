@@ -286,7 +286,8 @@ class Gossip:
                               f"expired {current_time-peer_challenge[1]}s ago")
                 await self.close_peer(peer)
 
-    async def print_gossip_debug(self):
+    def print_gossip_debug(self):
+        """Prints all Gossip class variables"""
         self.__log_connected_peers()
         logging.debug(f"[API] connected apis {self.apis}")
         logging.debug(f"[API] current subscribers {self.datasubs}")
@@ -307,13 +308,14 @@ class Gossip:
                      f"{self.get_peer_addresses(self.__unverified_peers)} "
                      f"({len(self.__unverified_peers)})")
 
-    async def print_api_debug(self):
-        print("[API] connected apis: " + str(self.apis))
-        print("[API] current subscribers: " + str(self.datasubs))
-        print("[API] current routing ids: " +
-              str(list(self.peer_announce_ids.queue)))
-        print("[API] current announces to verify: " +
-              str(self.announces_to_verify))
+    def print_api_debug(self):
+        """Prints all Gossip class variables for API functionality"""
+        logging.debug(f"[API] connected apis {self.apis}")
+        logging.debug(f"[API] current subscribers {self.datasubs}")
+        logging.debug("[API] current routing ids: " +
+                      f"{list(self.peer_announce_ids.queue)}")
+        logging.debug("[API] current announces to verify: " +
+                      f"{self.announces_to_verify}\r\n")
 
     async def add_subscriber(self, datatype, api):
         """Adds an Api_connection to the Subscriber dict (datasubs)
@@ -371,6 +373,7 @@ class Gossip:
 
         # Choose degree peers randomly
         # TODO: if peers < degree, choose all peers
+        # TODO: if Block, delete try catch
         try:
             peers = self.__pull_peers + list(self.__push_peers)
             peer_sample = sample(peers, self.config.degree)
@@ -452,8 +455,7 @@ class Gossip:
         if len(self.announces_to_verify[msg_id][4]) == 0:
             (ttl, dtype, data, peer, _) = \
                 self.announces_to_verify.pop(msg_id, None)
-            peer_sample = await self.__get_peer_announce_sample(
-                msg_id, ttl, dtype, data)
+            peer_sample = await self.__get_peer_sample()
             # remove original sender from sample
             if peer in peer_sample:
                 peer_sample.remove(peer)
@@ -464,9 +466,11 @@ class Gossip:
                     await peer.send_peer_announce(msg_id, ttl, dtype, data)
         return
 
-    async def __get_peer_announce_sample(self, packet_id, ttl, dtype, data):
-        """Gets called if you want to send a PEER_ANNOUNCE to a sample
-           of currently connected peers."""
+    async def __get_peer_sample(self):
+        """Get a sample of the currently connected peers.
+
+        Returns:
+            - List of Peer_connections"""
         peers = self.__pull_peers + list(self.__push_peers)
         if len(peers) < self.config.degree:
             return peers

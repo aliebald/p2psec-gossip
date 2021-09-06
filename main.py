@@ -26,10 +26,9 @@ def parse_arguments():
     parser = argparse.ArgumentParser(description=description)
     parser.add_argument("-p", "--path", type=str,
                         help="Path to the desired config file")
-    parser.add_argument("-l", "--logging", type=str, dest="logging",
-                        help=("Logging level. Possible options: DEBUG, INFO, "
-                              "WARNING, ERROR or CRITICAL (upper or lowercase)"
-                              ))
+    parser.add_argument("-v", "--verbose", action='store_true',
+                        dest="logging",
+                        help="More debug information")
     parser.add_argument("-f", "--logfile", type=str, dest="logfile_path",
                         help=("If this is specified, all logging will be "
                               "written into the file at the end of this path"))
@@ -38,34 +37,11 @@ def parse_arguments():
     path = args.path if args.path else "./config.ini"
     logfile = args.logfile_path if args.logfile_path else None
 
-    log_level = logging.INFO if args.logging == None else parse_log_level(
-        args.logging.upper())
+    print(args.logging)
+
+    log_level = logging.DEBUG if args.logging else logging.INFO
 
     return (path, log_level, logfile)
-
-
-def parse_log_level(level):
-    """Parses a log level from string to its logging counterpart. IF the given 
-    level is invalid, a KeyError is raised.
-
-    Arguments: 
-    - level (str) -- must be one of the following: 
-      DEBUG, INFO, WARNING, ERROR or CRITICAL
-    """
-    if level == "DEBUG":
-        return logging.DEBUG
-    elif level == "INFO":
-        return logging.INFO
-    elif level == "WARNING":
-        return logging.WARNING
-    elif level == "ERROR":
-        return logging.ERROR
-    elif level == "CRITICAL":
-        return logging.CRITICAL
-    else:
-        raise KeyError(
-            "If the logging parameter is given, it must be one of the "
-            "following: DEBUG, INFO, WARNING, ERROR or CRITICAL.")
 
 
 def setup_logger(level, logfile):
@@ -103,4 +79,7 @@ async def main():
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    try:
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        exit()
