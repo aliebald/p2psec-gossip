@@ -12,7 +12,11 @@ import socket
 import struct
 import asyncio
 from context import packet_parser as pp
+from context import gossip
+import hashlib
 
+
+# TODO: delete
 GOSSIP_NOTIFY = 501
 GOSSIP_NOTIFICATION = 502
 GOSSIP_VALIDATION = 503
@@ -21,14 +25,53 @@ FORMAT_GOSSIP_NOTIFICATION = "!HHHH"
 FORMAT_GOSSIP_VALIDATION = "!HHHH"
 
 
-def main():
-    asyncio.run(test_peer_announce())
-    test_gossip_announce()
+async def main():
+    await test_handshake()
+    # await test_peer_announce()
+    # await test_gossip_announce()
+    return
+
+
+async def test_handshake():
+    print("[test_handshake] Starting Test...")
+    peer = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    print("[test_handshake] Connecting mock peer to our program")
+    peer.connect(('127.0.0.1', 6001))
+    print("[test_handshake] Sending mock peers PEER INFO")
+    peer.send(pp.pack_peer_info(6300))
+    peer.flush()
+    buf = await await_message(peer)
+    print("[test_handshake] Received PEER CHALLENGE")
+    if len(buf) == int.from_bytes(buf[:2], "big"):
+        print("[test_handshake] PEER CHALLENGE size field is correct")
+    else:
+        print("[test_handshake] ERROR - PEER CHALLENGE size \
+               field is not correct")
+    if int.from_bytes(buf[2:4], "big") == pp.PEER_CHALLENGE:
+        print("[test_handshake] PEER CHALLENGE message type is correct")
+    else:
+        print("[test_handshake] ERROR - PEER CHALLENGE message \
+               type is not correct")
+    challenge = buf[4:]
+    nonce = 0
+    while nonce < (2**64)-1:
+        hash_val = \
+            hashlib.sha256(nonce.to_bytes(8, "big") + challenge).hexdigest()
+        if hash_val[:4] == '0000':
+            break
+        nonce += 1
+    # Send PEER VERIFICATION
+    peer.send(pp.pack_peer_verification(nonce))
+    peer.flush()
+    # buf = await_message(peer)
+    peer.close()
+    return
 
 
 async def test_peer_announce():
     """This test subscribes with 2 APIs to the datatype 1 and validates with
     both after the PEER_ANNOUNCE"""
+    print("[test_peer_announce] Starting Test")
     api1_correct = False
     api2_correct = False
     peer2_correct = True
@@ -38,24 +81,30 @@ async def test_peer_announce():
     api2 = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
     # Connect with both apis
+    print("[test_peer_announce] Connecting APIs")
     api1.connect(('127.0.0.1', 7001))
     api2.connect(('127.0.0.1', 7001))
     # Subscribe to Datatype 1
+    print("[test_peer_announce] Subscribing APIs to Datatype 1")
     api1.sendall(struct.pack(FORMAT_GOSSIP_NOTIFY, 8,
                              GOSSIP_NOTIFY, 0, 1))
     api2.sendall(struct.pack(FORMAT_GOSSIP_NOTIFY, 8,
                              GOSSIP_NOTIFY, 0, 1))
     # Connect peers
+    print("[test_peer_announce] Connecting peers, performing Handshake")
     peer1.connect(('127.0.0.1', 6001))
+    asyncio.create_task(handshake_handler(peer1))
     peer2.connect(('127.0.0.1', 6001))
+    asyncio.create_task(handshake_handler(peer1))
+
     # task_peer1 = asyncio.create_task(await_message(peer1))
-    task_peer2 = asyncio.create_task(peer2_handler(peer2))
+    task_peer2 = asyncio.create_task(pannounce_peer2_handler(peer2))
     # Send PEER_ANNOUNCE
     peer1.sendall(pp.pack_peer_announce(1, 2, 1, b''))
 
     # Check for received GOSSIP_NOTIFICATION
-    asyncio.create_task(api1_handler(api1))
-    asyncio.create_task(api2_handler(api2))
+    asyncio.create_task(pannounce_api1_handler(api1))
+    asyncio.create_task(pannounce_api2_handler(api2))
 
     await asyncio.sleep(1)
 
@@ -77,6 +126,27 @@ async def test_peer_announce():
         print("[TEST 02]: PEER_ANNOUNCE - correct")
 
     close_all([api1, api2, peer1, peer2])
+    return
+
+
+async def handshake_handler(socket):
+    # Send PEER INFO
+    socket.sendall(pp.pack_peer_info(10000))
+    # Catch PEER CHALLENGE
+    buf = await await_message(socket)
+    challenge = buf[4:]
+    # Generate Nonce
+    nonce = 0
+    while nonce < (2**64)-1:
+        hash_val = \
+            hashlib.sha256(nonce.to_bytes(8, "big") + challenge).hexdigest()
+        if hash_val[:4] == '0000':
+            break
+        nonce += 1
+    # Send PEER VERIFICATION
+    socket.sendall(pp.pack_peer_verification(nonce))
+    # Ignore PEER VALIDATION
+    return
 
 
 def close_all(socket_list):
@@ -94,7 +164,7 @@ async def await_message(socket):
         return None
 
 
-async def api1_handler(socket):
+async def pannounce_api1_handler(socket):
     buf = await await_message(socket)
     if buf is None:
         return
@@ -105,7 +175,7 @@ async def api1_handler(socket):
     return
 
 
-async def api2_handler(socket):
+async def pannounce_api2_handler(socket):
     buf = await await_message(socket)
     if buf is None:
         return
@@ -116,7 +186,7 @@ async def api2_handler(socket):
     return
 
 
-async def peer2_handler(socket):
+async def pannounce_peer2_handler(socket):
     buf = await await_message(socket)
     if buf is None:
         return
@@ -127,7 +197,7 @@ async def peer2_handler(socket):
     return
 
 
-def test_gossip_announce():
+async def test_gossip_announce():
     """Test GOSSIP ANNOUNCE functionality by:
     1. Subscribing with 2 API mocks
     2. Add a peer mock
@@ -135,30 +205,82 @@ def test_gossip_announce():
     4. Checking if we receive it with the second
     5. Checking if we got a PEER ANNOUNCE at the peer mock
     """
+    print("[test_gossip_announce] Starting Test")
+    api2_correct = False
+    peer_correct = False
+
     peer = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     api1 = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     api2 = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
     # 1. Connect with both apis
+    print("[test_gossip_announce] Connecting with APIs")
     api1.connect(('127.0.0.1', 7001))
     api2.connect(('127.0.0.1', 7001))
     # Subscribe to Datatype 1
-    api2.sendall()
+    print("[test_gossip_announce] Subscribing with APIs to Datatype 1")
+    api1.sendall(struct.pack(FORMAT_GOSSIP_NOTIFY, 8,
+                             GOSSIP_NOTIFY, 0, 1))
+    api2.sendall(struct.pack(FORMAT_GOSSIP_NOTIFY, 8,
+                             GOSSIP_NOTIFY, 0, 1))
     # 2. Connect peer
+    print("[test_gossip_announce] Connecting with Peer")
     peer.connect(('127.0.0.1', 6001))
 
     # TODO Handshake
 
+    # Start Listeners
+    task_api2 = asyncio.create_task(gannounce_api2_handler(api2))
+    asyncio.create_task(gannounce_peer_handler(peer))
     # 3. Send GOSSIP ANNOUNCE with api1
+    print("[test_gossip_announce] Send GOSSIP ANNOUNCE with API 1")
     api1.sendall(struct.pack(pp.FORMAT_GOSSIP_ANNOUNCE, 8, pp.GOSSIP_ANNOUNCE,
                              2, 0, 1) + b'')
 
+    await asyncio.sleep(1)
+
     # 4. Check if api2 got GOSSIP ANNOUNCE
+    if task_api2.done() and api2_correct:
+        print("[test_gossip_announce][TEST 01]: GOSSIP NOTIFICATIONs - \
+               correct, received GOSSIP ANNOUNCE at API 2")
+    else:
+        print("[test_gossip_announce][TEST 01]: GOSSIP NOTIFICATIONs - \
+               wrong, did NOT receive GOSSIP ANNOUNCE at API 2")
     # 5. Check if peer2 got peer announce
+    if peer_correct:
+        print("[test_gossip_announce][TEST 02]: PEER ANNOUNCE - \
+               correct, received PEER ANNOUNCE at Peer")
+    else:
+        print("[test_gossip_announce][TEST 01]: PEER ANNOUNCE - \
+               wrong, did not receive PEER ANNOUNCE at Peer")
+    close_all([peer, api1, api2])
+    return
+
+
+async def gannounce_api2_handler(socket):
+    buf = await await_message(socket)
+    if buf is None:
+        return
+    mtype = pp.get_header_type(buf)
+    if mtype == pp.GOSSIP_NOTIFICATION:
+        global api2_correct
+        api2_correct = True
+    return
+
+
+async def gannounce_peer_handler(socket):
+    buf = await await_message(socket)
+    if buf is None:
+        return
+    mtype = pp.get_header_type(buf)
+    if mtype == pp.PEER_ANNOUNCE:
+        global peer_correct
+        peer_correct = True
+    return
 
 
 if __name__ == "__main__":
     try:
-        main()
+        asyncio.run(main())
     except KeyboardInterrupt:
-        pass
+        exit()
