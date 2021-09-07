@@ -25,22 +25,17 @@ class Test_header_funcs(unittest.TestCase):
         # wrong packet: empty buffer (b'')
         test_packet = b''
         self.assertEqual(pp.parse_gossip_announce(test_packet),
-                         (), "Empty byte (b'') should return empty tuple")
-
-        # wrong packet: incorrect message type
-        test_packet = pack(pp.FORMAT_GOSSIP_ANNOUNCE, 8, 600, 0, 0, 0)
-        self.assertEqual(pp.parse_gossip_announce(test_packet),
-                         (), "Wrong message type should return empty tuple")
+                         None, "Empty byte (b'') should return None")
 
         # wrong packet: correct size, packet too small
         test_packet = pack("!HHBB", 6, 500, 0, 0)
         self.assertEqual(pp.parse_gossip_announce(test_packet),
-                         (), "Packet should throw error, too small to parse")
+                         None, "Packet should throw error, too small to parse")
 
         # wrong packet: incorrect size
         test_packet = pack(pp.FORMAT_GOSSIP_ANNOUNCE+"H", 80, 500, 0, 0, 0, 0)
         self.assertEqual(pp.parse_gossip_announce(test_packet),
-                         (), "Packet should have a wrong size")
+                         None, "Packet should have a wrong size")
 
     def test_parse_gossip_notify(self):
         # correct packet
@@ -52,28 +47,28 @@ class Test_header_funcs(unittest.TestCase):
         test_packet = pack(pp.FORMAT_GOSSIP_NOTIFY, 8, pp.GOSSIP_VALIDATION, 0,
                            1)
         self.assertEqual(pp.parse_gossip_notify(test_packet),
-                         (), "wrong msg_type should return error")
+                         None, "wrong msg_type should return error")
 
         # empty buffer b''
         test_packet = b''
         self.assertEqual(pp.parse_gossip_notify(test_packet),
-                         (), "Empty buffer should return empty tuple ()")
+                         None, "Empty buffer should return None ()")
 
         # wrong size-field value
         test_packet = pack(pp.FORMAT_GOSSIP_NOTIFY, 60, pp.GOSSIP_NOTIFY, 0, 1)
         self.assertEqual(pp.parse_gossip_notify(test_packet),
-                         (), "Wrong size value should return error")
+                         None, "Wrong size value should return error")
 
         # too large packet, correct size-field
         test_packet = pack(pp.FORMAT_GOSSIP_NOTIFY+"HH", 12, pp.GOSSIP_NOTIFY,
                            0, 1, 0, 0)
         self.assertEqual(pp.parse_gossip_notify(test_packet),
-                         (), "a too large packet should return as an error")
+                         None, "a too large packet should return as an error")
 
         # too small packet, correct size-field
         test_packet = pack("!HHH", 6, pp.GOSSIP_NOTIFY, 0)
         self.assertEqual(pp.parse_gossip_notify(test_packet),
-                         (), "a too small packet should return as an error")
+                         None, "a too small packet should return as an error")
 
     def test_parse_gossip_notification(self):
         # correct packet
@@ -86,24 +81,18 @@ class Test_header_funcs(unittest.TestCase):
         test_packet = pack(pp.FORMAT_GOSSIP_NOTIFICATION, 8,
                            pp.GOSSIP_NOTIFICATION, 12, 1)
         self.assertEqual(pp.parse_gossip_announce(test_packet),
-                         (), "missing data should throw error")
+                         None, "missing data should throw error")
 
         # wrong packet: empty buffer (b'')
         test_packet = b''
         self.assertEqual(pp.parse_gossip_notification(test_packet),
-                         (), "empty buffer b'' should throw error")
-
-        # wrong packet: incorrect message type
-        test_packet = pack(pp.FORMAT_GOSSIP_NOTIFICATION+"H", 10,
-                           pp.GOSSIP_ANNOUNCE, 12, 1, 0)
-        self.assertEqual(pp.parse_gossip_notification(test_packet),
-                         (), "wrong msg_type should return error")
+                         None, "empty buffer b'' should throw error")
 
         # wrong packet: incorrect size
         test_packet = pack(pp.FORMAT_GOSSIP_NOTIFICATION+"H", 900,
                            pp.GOSSIP_NOTIFICATION, 12, 1, 0)
         self.assertEqual(pp.parse_gossip_notification(test_packet),
-                         (), "wrong size should return error")
+                         None, "wrong size should return error")
 
     def test_parse_gossip_validation(self):
         # correct packet: bit set
@@ -122,30 +111,30 @@ class Test_header_funcs(unittest.TestCase):
         test_packet = pack(pp.FORMAT_GOSSIP_VALIDATION, 8,
                            pp.GOSSIP_VALIDATION, 12, 2)
         self.assertEqual(pp.parse_gossip_validation(test_packet),
-                         (), "non-empty reserved field was not caught")
+                         None, "non-empty reserved field was not caught")
 
         # wrong packet: too short
         test_packet = pack("!HHH", 6, pp.GOSSIP_VALIDATION, 12)
         self.assertEqual(pp.parse_gossip_validation(test_packet),
-                         (), "too short packet threw no error")
+                         None, "too short packet threw no error")
 
         # wrong packet: too long
         test_packet = pack(pp.FORMAT_GOSSIP_VALIDATION+"H", 12,
                            pp.GOSSIP_VALIDATION, 1, 0, 0)
         self.assertEqual(pp.parse_gossip_validation(test_packet),
-                         (), "too long packet threw no error")
+                         None, "too long packet threw no error")
 
         # wrong packet: incorrect msg_type
         test_packet = pack(pp.FORMAT_GOSSIP_VALIDATION, 8,
                            pp.GOSSIP_ANNOUNCE, 12, 1)
         self.assertEqual(pp.parse_gossip_validation(test_packet),
-                         (), "incorrect msg_type threw no error")
+                         None, "incorrect msg_type threw no error")
 
         # wrong packet: incorrect size
         test_packet = pack(pp.FORMAT_GOSSIP_VALIDATION, 60,
                            pp.GOSSIP_VALIDATION, 12, 1)
         self.assertEqual(pp.parse_gossip_validation(test_packet),
-                         (), "incorrect size-field value threw no error")
+                         None, "incorrect size-field value threw no error")
 
     def test_get_type(self):
         # correct packet
