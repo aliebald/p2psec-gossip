@@ -165,7 +165,7 @@ class Test_config(unittest.TestCase):
         self.__check_raises_no_exception()
 
     def __check_raises_no_exception(self):
-        """Asserts that the initialization for the generated Config 
+        """Asserts that the initialization for the generated Config
         ("autogen_testconfig.ini") does not fail"""
         try:
             Config("autogen_testconfig.ini")
@@ -173,8 +173,8 @@ class Test_config(unittest.TestCase):
             self.fail("Config raised an Exception unexpectedly")
 
     def __check_raises_valid_exception(self, exception):
-        """Asserts that the initialization for the generated Config 
-        ("autogen_testconfig.ini") fails and raises the given exception with a 
+        """Asserts that the initialization for the generated Config
+        ("autogen_testconfig.ini") fails and raises the given exception with a
         message
         """
         with self.assertRaises(exception) as cm:

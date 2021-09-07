@@ -25,20 +25,20 @@ class Gossip:
     - config (Config) -- config object used for this instance of gossip
     - push_peers (Peer_connection List) -- Connected (active) push peers /
       peers that connected to us
-    - pull_peers (Peer_connection List) -- Connected (active) pull peers / 
+    - pull_peers (Peer_connection List) -- Connected (active) pull peers /
       peers we learned about from other peers and than connected to.
-    - unverified_peers (Peer_connection List) -- peers that connected to us 
-      that still need to be verified. After beeing verified, they will be moved 
+    - unverified_peers (Peer_connection List) -- peers that connected to us
+      that still need to be verified. After beeing verified, they will be moved
       into push_peers.
     - max_push_peers (int) -- push_peers capacity
     - max_pull_peers (int) -- pull_peers capacity
     - apis (Api_connection List) -- connected APIs
-    - datasubs (dictionary: int-[Api_connection]) -- Datatypes linking to all 
+    - datasubs (dictionary: int-[Api_connection]) -- Datatypes linking to all
       theire subscribing APIs
     - peer_announce_ids (Setqueue) -- TODO document
-    - announces_to_verify (dictionary: int - Tuple List) -- open 
-      PEER_ANNOUNCES. PEER_ANNOUNCES Will be forwarded if/when all subscribers 
-      verify the message. 
+    - announces_to_verify (dictionary: int - Tuple List) -- open
+      PEER_ANNOUNCES. PEER_ANNOUNCES Will be forwarded if/when all subscribers
+      verify the message.
       Format: message-id : [(ttl, datatype, data, [datasubs])]
     """
 
@@ -200,8 +200,8 @@ class Gossip:
         Arguments:
         - peerlist: List containing Peer_connections, default = None. If this
           is not None, the addresses contained within the list will be returned
-          If this is None, the addresses of push_peers and pull_peers will be 
-          returned. 
+          If this is None, the addresses of push_peers and pull_peers will be
+          returned.
           This can be used to exclusively get the addresses of pull or push peers.
 
         Returns:
@@ -216,7 +216,7 @@ class Gossip:
         return list(filter(lambda x: x is not None, addresses))
 
     async def close_peer(self, peer):
-        """Removes a Peer_connection from gossip and calls close on the 
+        """Removes a Peer_connection from gossip and calls close on the
         Peer_connection.
 
         Arguments:
@@ -275,7 +275,7 @@ class Gossip:
             await asyncio.sleep(self.config.search_cooldown)
 
     async def __clean_unverified_peers(self):
-        """Goes through unverified_peers and closes all connections where a 
+        """Goes through unverified_peers and closes all connections where a
         PEER CHALLENGE was send and the timeout expired"""
         for peer in self.__unverified_peers:
             peer_challenge = peer.get_peer_challenge()

@@ -1,6 +1,6 @@
 """
 This module provides the Config class, which s abstracts the parsing required
-to read config files and provides easy access to the variables inside the given 
+to read config files and provides easy access to the variables inside the given
 configfile.
 
 In this file there are also a few checks and a format for the config class. The
@@ -26,8 +26,8 @@ def __check_min_connections(config):
 
 
 def __check_max_connections(config):
-    """Checks if 
-    - max_connections >= 2 
+    """Checks if
+    - max_connections >= 2
     - max_connections >= min_connections
     """
     if config.max_connections < 2:
@@ -41,7 +41,7 @@ def __check_max_connections(config):
 
 
 def __check_degree(config):
-    """Checks if 
+    """Checks if
     - degree <= max_connections
     - degree <= min_connections
     - degree > 0"""
@@ -244,8 +244,8 @@ class Config:
             setattr(self, key, (_type)(vars(self)[key]))
 
     def __key_in_configparser(self, configparser, section, key):
-        """Checks if the given section and key exists. Similar to 
-        __check_key_exists but returns a boolean and does not throw an error. 
+        """Checks if the given section and key exists. Similar to
+        __check_key_exists but returns a boolean and does not throw an error.
         For non required keys.
         """
         return (key in configparser[section] and

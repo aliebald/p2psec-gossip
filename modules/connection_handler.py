@@ -11,8 +11,8 @@ async def connection_handler(host, port, on_connection_fnc):
     Arguments:
        host -- host address for server
        port -- port for server
-       on_connection_fnc -- function that gets called when a client is 
-                            connected. 
+       on_connection_fnc -- function that gets called when a client is
+                            connected.
                             Will pass the clientsocket as an argument.
     """
 

@@ -13,8 +13,8 @@ def generate_test_config(
     api_address="127.0.0.1:7001",
     known_peers="127.0.0.1:1000, 127.0.0.1:2000"
 ):
-    """Generates a config file in the current directory, for testing. 
-    Set parameters to None to not include them in the config. 
+    """Generates a config file in the current directory, for testing.
+    Set parameters to None to not include them in the config.
     If all default parameters are used, the config should be valid.
     Use delete_test_config() to delete the file after executing the tests
 

@@ -50,16 +50,16 @@ class Peer_connection:
     - reader (StreamReader) -- (private) asyncio StreamReader of connected peer
     - writer (StreamWriter) -- (private) asyncio StreamWriter of connected peer
     - peer_p2p_listening_port (int) -- p2p_listening_port of connected peer
-    - last_challenges -- (private) list of send challenges combined with a 
+    - last_challenges -- (private) list of send challenges combined with a
       timeout. Format: [(challenge, timeout)] When the current time is greater
       than timeout, the challenge is no longer valid
-    - peer_challenge (Tuple: int, int) -- challenge with timeout send to 
+    - peer_challenge (Tuple: int, int) -- challenge with timeout send to
       connected node. None if none was send.
-    - validated_them (boolean) -- Whether the connected node is validated / 
+    - validated_them (boolean) -- Whether the connected node is validated /
       considered trustworthy. A node can prove itself trustworthy by getting 
-      validated by us (push peers), see Documentation. Nodes we connect to 
+      validated by us (push peers), see Documentation. Nodes we connect to
       should be set to be validated_them by default.
-    - validated_us (boolean) -- whether this node is validated by the connected 
+    - validated_us (boolean) -- whether this node is validated by the connected
       node/peer. Gets updated upon receiving a peer validation. If we receive a
       new incoming connection, we assume that this peer trusts us.
     """
@@ -76,9 +76,9 @@ class Peer_connection:
         - validated_us (boolean) -- (Optional, default: False) whether this node
           is validated by the connected node/peer. Gets updated upon receiving
           a peer validation.
-        - validated_them (boolean) -- whether the connected node is considered 
+        - validated_them (boolean) -- whether the connected node is considered
           trustworthy. A node can prove itself trustworthy by getting validated
-          by us (push peers), see Documentation. Nodes we connect to should be 
+          by us (push peers), see Documentation. Nodes we connect to should be
           set to be trustworthy.
         """
         self.gossip = gossip
@@ -131,26 +131,26 @@ class Peer_connection:
             return
 
     def get_validated_them(self):
-        """Getter for validated_them. 
-        We use getter functions because validated_them should not be mutable 
+        """Getter for validated_them.
+        We use getter functions because validated_them should not be mutable
         from outside of Peer_connection"""
         # TODO check if we need this or if is_fully_validated is enough
         return self.__validated_them
 
     def get_validated_us(self):
-        """Getter for validated_us. 
+        """Getter for validated_us.
         We use getter functions because validated_us should not be mutable from
         outside of Peer_connection"""
         # TODO check if we need this or if is_fully_validated is enough
         return self.__validated_us
 
     def get_peer_challenge(self):
-        """Returns the peer challenge send to the connected peer together with 
+        """Returns the peer challenge send to the connected peer together with
         its timeout, or None if none was send"""
         return self.__peer_challenge
 
     def is_fully_validated(self):
-        """Returns true if the connection validated, meaning validated_them 
+        """Returns true if the connection validated, meaning validated_them
         and validated_us"""
         return self.__validated_them and self.__validated_us
 
@@ -215,7 +215,7 @@ class Peer_connection:
         return addr
 
     async def send_peer_discovery(self):
-        """Sends a peer discovery message. Assumes that the connection is 
+        """Sends a peer discovery message. Assumes that the connection is
         validated by both sides. Use is_fully_validated to check."""
         message = pack_peer_discovery(self.__generate_challenge())
         logging.info(f"[PEER] Sending PEER DISCOVERY to: {self}")
@@ -224,7 +224,7 @@ class Peer_connection:
     async def send_peer_announce(self, id, ttl, data_type, data):
         """Sends a peer announce message. For documentation of parameters, see
         the project documentation.
-        Assumes that the connection is validated by both sides. Use 
+        Assumes that the connection is validated by both sides. Use
         is_fully_validated to check."""
         message = pack_peer_announce(id, ttl, data_type, data)
         logging.info(f"[PEER] Sending PEER ANNOUNCE with id: {id}, ttl: {ttl} "
@@ -232,9 +232,9 @@ class Peer_connection:
         await self.__send(message)
 
     async def send_peer_challenge(self):
-        """Sends a peer challenge message and saves the challenge with a 
-        timeout in __peer_challenge. Should only be called once per peer and 
-        only if we where not the initiator of the connection. 
+        """Sends a peer challenge message and saves the challenge with a
+        timeout in __peer_challenge. Should only be called once per peer and
+        only if we where not the initiator of the connection.
         See Project Documentation - Push Gossip"""
         # Check if a peer challenge was already send
         if self.__peer_challenge != None:
@@ -251,7 +251,7 @@ class Peer_connection:
         await self.__send(message)
 
     async def __send_peer_validation(self, valid):
-        """Sends a peer validation message, updates validated_them and tells 
+        """Sends a peer validation message, updates validated_them and tells
         gossip that the connected peer is now considered valid.
 
         Arguments:
@@ -269,7 +269,7 @@ class Peer_connection:
     async def __send_peer_verification(self, nonce):
         """Sends a peer verification message.
         Arguments:
-        - nonce (int) -- Nonce for challenge received in peer challenge - See 
+        - nonce (int) -- Nonce for challenge received in peer challenge - See
           project documentation
         """
         message = pack_peer_verification(nonce)
@@ -387,10 +387,10 @@ class Peer_connection:
     def __handle_type(self, type):
         """Checks if the given type should be handled at the moment.
 
-        If the connected node is not validated (not validated_them), only allow 
+        If the connected node is not validated (not validated_them), only allow
         PEER VERIFICATION and PEER INFO.
 
-        If we are not validated by the connected node (not validated_us), only 
+        If we are not validated by the connected node (not validated_us), only
         allow PEER CHALLENGE and PEER VALIDATION
 
         If both sides are validated, allow all messages
@@ -404,7 +404,7 @@ class Peer_connection:
                 or case_not_validated_them or case_not_validated_us)
 
     async def __handle_peer_announce(self, buf):
-        """Handles a peer announce message. Executes basic checks and then 
+        """Handles a peer announce message. Executes basic checks and then
         forwards it to gossip. Assumes that the connection is validated by both
         sides.
 
@@ -435,12 +435,12 @@ class Peer_connection:
         await self.__send_peer_offer(challenge)
 
     async def __handle_peer_offer(self, buf):
-        """Handles a peer offer message. 
-        Calls handle_peer_offer() of gossip if everything is ok. Assumes that 
+        """Handles a peer offer message.
+        Calls handle_peer_offer() of gossip if everything is ok. Assumes that
         the connection is validated by both sides.
 
         Arguments:
-        - buf (byte-object) -- received message in byte format. The type must 
+        - buf (byte-object) -- received message in byte format. The type must
           be PEER_DISCOVERY
         """
         msg = parse_peer_offer(buf)
@@ -554,11 +554,11 @@ async def peer_connection_factory(addresses, gossip, p2p_listening_port):
     """Connects to multiple addresses of peers.
 
     Arguments:
-    - addresses (str List) -- list containing addresses to other peers. 
+    - addresses (str List) -- list containing addresses to other peers.
       Format: host_ip:port
-    - gossip (Gossip) -- gossip instance responsible for potential 
+    - gossip (Gossip) -- gossip instance responsible for potential
       Peer_connection's
-    - p2p_listening_port (int) -- Port this peer accepts new peer connections 
+    - p2p_listening_port (int) -- Port this peer accepts new peer connections
       at
 
     Returns:
@@ -586,11 +586,11 @@ async def __connect_peer(address, gossip, p2p_listening_port):
     Arguments:
     - ip (str) -- target ip address
     - port (int) -- target port
-    - p2p_listening_port (int) -- Port this peer accepts new peer connections 
+    - p2p_listening_port (int) -- Port this peer accepts new peer connections
       at
 
     Returns:
-        None if failed to open the connection. 
+        None if failed to open the connection.
         Otherwise a new Peer_connection instance.
     """
     (ip, port) = address.split(":")
@@ -606,7 +606,7 @@ async def __connect_peer(address, gossip, p2p_listening_port):
 
 
 async def __send_peer_info(writer, p2p_listening_port):
-    """Sends a PEER INFO message with p2p_listening_port to the given 
+    """Sends a PEER INFO message with p2p_listening_port to the given
     StreamWriter
 
     Arguments:
