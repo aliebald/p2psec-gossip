@@ -10,7 +10,7 @@ from math import (floor, ceil)
 from time import time
 from collections import deque
 
-from modules.util import SetQueue
+from modules.util import Setqueue
 from modules.api.api_connection import Api_connection
 from modules.connection_handler import connection_handler
 from modules.peers.peer_connection import (
@@ -35,7 +35,7 @@ class Gossip:
     - apis (Api_connection List) -- connected APIs
     - datasubs (dictionary: int-[Api_connection]) -- Datatypes linking to all 
       theire subscribing APIs
-    - peer_announce_ids (SetQueue) -- TODO document
+    - peer_announce_ids (Setqueue) -- TODO document
     - announces_to_verify (dictionary: int - Tuple List) -- open 
       PEER_ANNOUNCES. PEER_ANNOUNCES Will be forwarded if/when all subscribers 
       verify the message. 
@@ -61,13 +61,13 @@ class Gossip:
 
         #                          Key - Value
         # Subscriber list, Format: Int - List of Api_connections
-        self.datasubs = {}
-        self.peer_announce_ids = SetQueue(self.config.cache_size)
+        self.__datasubs = {}
+        self.__peer_announce_ids = Setqueue(self.config.cache_size)
         # Dictionary of buffered PEER_ANNOUNCEs;
         # Key: int - Message ID
         # Value: [ int, int     , bytes, Peer_connection, [Peer_connection]]
         #        [(ttl, datatype, data , sender         , [datasubs])]
-        self.announces_to_verify = {}
+        self.__announces_to_verify = {}
 
     async def run(self):
         """Starts this gossip instance.
@@ -290,11 +290,11 @@ class Gossip:
         """Prints all Gossip class variables"""
         self.__log_connected_peers()
         logging.debug(f"[API] connected apis {self.apis}")
-        logging.debug(f"[API] current subscribers {self.datasubs}")
+        logging.debug(f"[API] current subscribers {self.__datasubs}")
         logging.debug("[API] current routing ids: " +
-                      f"{list(self.peer_announce_ids.queue)}")
+                      f"{list(self.__peer_announce_ids.queue)}")
         logging.debug("[API] current announces to verify: " +
-                      f"{self.announces_to_verify}\r\n")
+                      f"{self.__announces_to_verify}\r\n")
 
     def __log_connected_peers(self):
         """Logs push and pull peers including capacities"""
@@ -311,31 +311,31 @@ class Gossip:
     def print_api_debug(self):
         """Prints all Gossip class variables for API functionality"""
         logging.debug(f"[API] connected apis {self.apis}")
-        logging.debug(f"[API] current subscribers {self.datasubs}")
+        logging.debug(f"[API] current subscribers {self.__datasubs}")
         logging.debug("[API] current routing ids: " +
-                      f"{list(self.peer_announce_ids.queue)}")
+                      f"{list(self.__peer_announce_ids.queue)}")
         logging.debug("[API] current announces to verify: " +
-                      f"{self.announces_to_verify}\r\n")
+                      f"{self.__announces_to_verify}\r\n")
 
     async def add_subscriber(self, datatype, api):
         """Adds an Api_connection to the Subscriber dict (datasubs)
            gets called after a GOSSIP_NOTIFY
         """
-        if datatype in self.datasubs.keys():
-            temp = self.datasubs[datatype]
+        if datatype in self.__datasubs.keys():
+            temp = self.__datasubs[datatype]
             temp.append(api)
-            self.datasubs[datatype] = temp
+            self.__datasubs[datatype] = temp
         else:
-            self.datasubs[datatype] = [api]
+            self.__datasubs[datatype] = [api]
 
         return
 
     async def __remove_subscriber(self, api):
         """Removes an Api_connection from the whole Subscriber dict (datasubs)
         """
-        for key in self.datasubs:
-            if api in self.datasubs[key]:
-                self.datasubs[key].remove(api)
+        for key in self.__datasubs:
+            if api in self.__datasubs[key]:
+                self.__datasubs[key].remove(api)
         return
 
     async def close_api(self, api):
@@ -353,10 +353,10 @@ class Gossip:
     async def __add_peer_announce_id(self, packet_id):
         """Adds a packet/message id to the FIFO Queue to keep track of known
            IDs to prevent routing loops"""
-        if self.peer_announce_ids.full():
-            self.peer_announce_ids.get()
+        if self.__peer_announce_ids.full():
+            self.__peer_announce_ids.get()
         # duplicates wont be added as we use SetQueue
-        self.peer_announce_ids.put(packet_id)
+        self.__peer_announce_ids.put(packet_id)
 
     async def handle_gossip_announce(self, ttl, dtype, data):
         """Gets called upon arrival of a GOSSIP_ANNOUNCE
@@ -366,19 +366,18 @@ class Gossip:
               - send a PEER_ANNOUNCE to a sample of degree peers"""
         # Generate PEER_ANNOUNCE id
         packet_id = randint(0, 2**64-1)
-        while self.peer_announce_ids.contains(packet_id):
+        while self.__peer_announce_ids.contains(packet_id):
             packet_id = randint(0, 2**64-1)
         # Save this id for routing loop prevention
         await self.__add_peer_announce_id(packet_id)
 
         # Choose degree peers randomly
-        # TODO: if peers < degree, choose all peers
-        # TODO: if Block, delete try catch
-        try:
-            peers = self.__pull_peers + list(self.__push_peers)
+
+        peers = self.__pull_peers + list(self.__push_peers)
+        if len(peers) < self.config.degree:
+            peer_sample = peers
+        else:
             peer_sample = sample(peers, self.config.degree)
-        except ValueError:
-            peer_sample = []
 
         # send PEER_ANNOUNCE on each Peer_connection
         for peer in peer_sample:
@@ -397,26 +396,26 @@ class Gossip:
                 add it to the dictionary of to-be validated announces
                 'announces_to_verify'"""
         # routing loops: check if id is already in id list
-        if self.peer_announce_ids.contains(packet_id):
+        if self.__peer_announce_ids.contains(packet_id):
             return
 
         await self.__add_peer_announce_id(packet_id)
 
         if ttl == 1:  # ends here, no forwarding
-            if dtype in self.datasubs.keys():
-                for sub in self.datasubs.get(dtype):
+            if dtype in self.__datasubs.keys():
+                for sub in self.__datasubs.get(dtype):
                     sub.send_gossip_notification(packet_id, dtype, data)
             return
 
         if ttl > 0:
             ttl -= 1
 
-        if dtype in self.datasubs.keys():
+        if dtype in self.__datasubs.keys():
             # save message and subs as tuple: (ttl, dtype, data, [datasubs])
             # and add to dictionary
-            self.announces_to_verify[packet_id] = \
-                (ttl, dtype, data, peer, self.datasubs.get(dtype).copy())
-            for sub in self.datasubs.get(dtype):
+            self.__announces_to_verify[packet_id] = \
+                (ttl, dtype, data, peer, self.__datasubs.get(dtype).copy())
+            for sub in self.__datasubs.get(dtype):
                 await sub.send_gossip_notification(packet_id, dtype, data)
 
         # no subscriber for this datatype
@@ -435,26 +434,26 @@ class Gossip:
         """
         if not valid:
             # delete the whole entry
-            self.announces_to_verify.pop(msg_id, None)
+            self.__announces_to_verify.pop(msg_id, None)
             return
 
-        if msg_id not in self.announces_to_verify.keys():
+        if msg_id not in self.__announces_to_verify.keys():
             logging.debug("[API] Message ID of GOSSIP VALIDATION is " +
                           "currently not being validated!")
             return
-        if api not in self.announces_to_verify[msg_id][4]:
+        if api not in self.__announces_to_verify[msg_id][4]:
             logging.debug("[API] Sender {api} of GOSSIP VALIDATION is " +
                           "no validator!")
             return
 
         # remove this api from the validators of this message id
-        self.announces_to_verify[msg_id][4].remove(api)
+        self.__announces_to_verify[msg_id][4].remove(api)
 
         # check if we are the last to verify
         # if yes send PEER_ANNOUNCE to peer sample
-        if len(self.announces_to_verify[msg_id][4]) == 0:
+        if len(self.__announces_to_verify[msg_id][4]) == 0:
             (ttl, dtype, data, peer, _) = \
-                self.announces_to_verify.pop(msg_id, None)
+                self.__announces_to_verify.pop(msg_id, None)
             peer_sample = await self.__get_peer_sample()
             # remove original sender from sample
             if peer in peer_sample:

@@ -9,7 +9,14 @@ import time
 
 # FIFO Queue which will not add duplicates
 # Source: https://stackoverflow.com/a/16506527
-class SetQueue(queue.Queue):
+# Hint: To get the length: "qsize()" function.
+class Setqueue(queue.Queue):
+    def __str__(self):
+        return str(list(self.queue))
+
+    def __repr__(self):
+        return str(list(self.queue))
+
     # Use a set as a basis to avoid duplicates
     def _init(self, maxsize):
         self.queue = set()
