@@ -10,7 +10,7 @@ from math import (floor, ceil)
 from time import time
 from collections import deque
 
-from modules.util import SetQueue
+from modules.util import Setqueue
 from modules.api.api_connection import Api_connection
 from modules.connection_handler import connection_handler
 from modules.peers.peer_connection import (
@@ -35,7 +35,7 @@ class Gossip:
     - apis (Api_connection List) -- connected APIs
     - datasubs (dictionary: int-[Api_connection]) -- Datatypes linking to all 
       theire subscribing APIs
-    - peer_announce_ids (SetQueue) -- TODO document
+    - peer_announce_ids (Setqueue) -- TODO document
     - announces_to_verify (dictionary: int - Tuple List) -- open 
       PEER_ANNOUNCES. PEER_ANNOUNCES Will be forwarded if/when all subscribers 
       verify the message. 
@@ -62,7 +62,7 @@ class Gossip:
         #                          Key - Value
         # Subscriber list, Format: Int - List of Api_connections
         self.datasubs = {}
-        self.peer_announce_ids = SetQueue(self.config.cache_size)
+        self.peer_announce_ids = Setqueue(self.config.cache_size)
         # Dictionary of buffered PEER_ANNOUNCEs;
         # Key: int - Message ID
         # Value: [ int, int     , bytes, Peer_connection, [Peer_connection]]
