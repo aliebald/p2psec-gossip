@@ -272,7 +272,7 @@ class Gossip:
                     await peer.send_peer_challenge()
 
             # TODO how long do we sleep?
-            await asyncio.sleep(self.config.search_cooldown)
+            await asyncio.sleep(self.config.challenge_cooldown)
 
     async def __clean_unverified_peers(self):
         """Goes through unverified_peers and closes all connections where a

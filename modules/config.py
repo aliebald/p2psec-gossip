@@ -64,6 +64,13 @@ def __check_search_cooldown(config):
                        "greater than 0")
 
 
+def __check_challenge_cooldown(config):
+    """Checks if challenge_cooldown greater than 0"""
+    if config.search_cooldown <= 0:
+        raise KeyError(f"challenge_cooldown ({config.search_cooldown}) must be "
+                       "greater than 0")
+
+
 def __check_bootstrapper(config):
     """Checks if the bootstrapper is in a valid format"""
     if not __is_valid_ip(config.bootstrapper):
@@ -157,9 +164,15 @@ config_config = {
         },
         "search_cooldown": {
             "required": False,
-            "default": 120000,  # 2 minutes
+            "default": 60,
             "type": int,
             "checks": __check_search_cooldown
+        },
+        "challenge_cooldown": {
+            "required": False,
+            "default": 120,
+            "type": int,
+            "checks": __check_challenge_cooldown
         },
         "bootstrapper": {
             "required": True,
