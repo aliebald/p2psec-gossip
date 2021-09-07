@@ -73,9 +73,9 @@ class Peer_connection:
         - gossip (Gossip) -- gossip responsible for this peer
         - peer_p2p_listening_port (int) -- (Optional, default: None) Port the
           connected peer accepts new peer connections at
-        - validated_us (boolean) -- (Optional, default: False) whether this node
-          is validated by the connected node/peer. Gets updated upon receiving
-          a peer validation.
+        - validated_us (boolean) -- (Optional, default: False) whether this
+          node is validated by the connected node/peer. Gets updated upon
+          receiving a peer validation.
         - validated_them (boolean) -- whether the connected node is considered
           trustworthy. A node can prove itself trustworthy by getting validated
           by us (push peers), see Documentation. Nodes we connect to should be
@@ -459,8 +459,9 @@ class Peer_connection:
         # check if the offer contains our own address
         p2p_address = self.gossip.config.p2p_address
         if p2p_address in data:
-            logging.warning("[PEER] Own p2p address found in peer offer!")
-            data = list(filter(lambda ip: ip != p2p_address, data))
+            logging.warning("[PEER] Own p2p address found in peer offer")
+            await self.gossip.close_peer(self)
+            return
 
         # save data / pass it to gossip
         await self.gossip.handle_peer_offer(data)
