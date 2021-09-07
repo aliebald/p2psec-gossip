@@ -9,7 +9,7 @@ import time
 
 # FIFO Queue which will not add duplicates
 # Source: https://stackoverflow.com/a/16506527
-class SetQueue(queue.Queue):
+class Setqueue(queue.Queue):
     # Use a set as a basis to avoid duplicates
     def _init(self, maxsize):
         self.queue = set()
