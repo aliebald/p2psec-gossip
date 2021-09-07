@@ -372,13 +372,12 @@ class Gossip:
         await self.__add_peer_announce_id(packet_id)
 
         # Choose degree peers randomly
-        # TODO: if peers < degree, choose all peers
-        # TODO: if Block, delete try catch
-        try:
-            peers = self.__pull_peers + list(self.__push_peers)
+
+        peers = self.__pull_peers + list(self.__push_peers)
+        if len(peers) < self.config.degree:
+            peer_sample = peers
+        else:
             peer_sample = sample(peers, self.config.degree)
-        except ValueError:
-            peer_sample = []
 
         # send PEER_ANNOUNCE on each Peer_connection
         for peer in peer_sample:
