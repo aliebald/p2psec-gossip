@@ -23,13 +23,13 @@ class Gossip:
 
     Class variables:
     - config (Config) -- config object used for this instance of gossip
-    - push_peers (Peer_connection List) -- Connected (active) push peers /
-      peers that connected to us
+    - push_peers (Peer_connection deque) -- Connected (active) push peers /
+      peers that connected to us. Limited to max_push_peers.
     - pull_peers (Peer_connection List) -- Connected (active) pull peers /
       peers we learned about from other peers and than connected to.
-    - unverified_peers (Peer_connection List) -- peers that connected to us
+    - unverified_peers (Peer_connection deque) -- peers that connected to us
       that still need to be verified. After beeing verified, they will be moved
-      into push_peers.
+      into push_peers. Limited to config.cache_size
     - max_push_peers (int) -- push_peers capacity
     - max_pull_peers (int) -- pull_peers capacity
     - apis (Api_connection List) -- connected APIs
@@ -55,8 +55,10 @@ class Gossip:
 
         # Push peers that connected to us
         self.__push_peers = deque(maxlen=self.__max_push_peers)
-        self.__pull_peers = []  # Pull peers that we connected to
-        self.__unverified_peers = []  # unverified push peers
+        # Pull peers that we connected to
+        self.__pull_peers = []
+        # unverified push peers
+        self.__unverified_peers = deque(maxlen=self.cache_size)
         self.apis = []
 
         #                          Key - Value
@@ -126,7 +128,15 @@ class Gossip:
         new_peer = Peer_connection(reader, writer, self, validated_us=True)
         logging.info(f"[PEER] New unverified peer connected: {new_peer}")
 
-        self.__unverified_peers.append(new_peer)
+        # Dosconnect the oldest unverified peer if we reached cache_size
+        if len(self.__unverified_peers) >= self.config.cache_size:
+            oldest_peer = self.__unverified_peers.pop()
+            logging.debug(
+                f"Disconnecting {oldest_peer}, because capacity for unverified"
+                f" peers (cache_size: {self.config.cache_size}) is reached")
+            await self.close_peer(oldest_peer)
+
+        self.__unverified_peers.appendleft(new_peer)
         asyncio.create_task(new_peer.run())
 
     async def validate_peer(self, peer):
@@ -135,9 +145,9 @@ class Gossip:
         if peer not in self.__unverified_peers:
             logging.warning("[PEER] Peer not found in unverified_peers")
             self.__log_connected_peers()
-            return
+        else:
+            self.__unverified_peers.remove(peer)
 
-        self.__unverified_peers.remove(peer)
         # Dosconnect the oldest push peer if we reached max_push_peers
         if len(self.__push_peers) >= self.__max_push_peers:
             oldest_peer = self.__push_peers.pop()
@@ -266,12 +276,9 @@ class Gossip:
         while True:
             if len(self.__unverified_peers) > 0:
                 await self.__clean_unverified_peers()
-                # TODO handle case: more peers than excepted
-
                 for peer in self.__unverified_peers:
                     await peer.send_peer_challenge()
 
-            # TODO how long do we sleep?
             await asyncio.sleep(self.config.challenge_cooldown)
 
     async def __clean_unverified_peers(self):
