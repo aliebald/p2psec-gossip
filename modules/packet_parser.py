@@ -209,6 +209,10 @@ def parse_gossip_validation(buf):
                       f"{type} in parse_gossip_validation")
         return None
 
+    if valid > 1:
+        logging.debug(f"[PARSER] Expected empty reserved field")
+        return None
+
     return (id, valid == 1)
 
 
@@ -355,7 +359,7 @@ def parse_peer_info(buf):
 
 
 def parse_peer_challenge(buf):
-    """Reads a PEER_CHALLENGE by checking the header and returning the 
+    """Reads a PEER_CHALLENGE by checking the header and returning the
     challenge
     Assumes that the message type is PEER_CHALLENGE.
 
@@ -418,7 +422,7 @@ def pack_peer_announce(id, ttl, data_type, data):
     - data_type (int)
     - data (byte-object)
 
-    Returns: 
+    Returns:
       packet as byte-object
     """
     size = 16 + len(data)
