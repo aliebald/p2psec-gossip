@@ -197,7 +197,6 @@ def parse_gossip_validation(buf):
         return None
 
     try:
-        # TODO reserved and valid is merged, separate according to protocol
         (_, type, id, valid) = unpack(FORMAT_GOSSIP_VALIDATION, buf[:8])
     except error as e:
         logging.debug("[PARSER] Struct parsing error in "
@@ -209,7 +208,9 @@ def parse_gossip_validation(buf):
                       f"{type} in parse_gossip_validation")
         return None
 
-    return (id, valid == 1)
+    # valid: test if first bit is set
+    # https://stackoverflow.com/a/2576713
+    return (id, valid & 1 != 0)
 
 
 def build_gossip_notification(msg_id, datatype, data):
@@ -405,7 +406,9 @@ def parse_peer_validation(buf):
         return None
 
     (_, _, _, valid) = unpack(FORMAT_PEER_VALIDATION, buf)
-    return valid == 1
+    # valid: test if first bit is set
+    # https://stackoverflow.com/a/2576713
+    return valid & 1 != 0
 
 
 def pack_peer_announce(id, ttl, data_type, data):
