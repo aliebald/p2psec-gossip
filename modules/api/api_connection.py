@@ -105,7 +105,7 @@ class Api_connection:
 
     async def __handle_gossip_announce(self, buf):
         tmp = parse_gossip_announce(buf)
-        if tmp == None:
+        if tmp is None:
             logging.info(f"[API] Disconnecting API user {self} -" +
                          "GOSSIP_ANNOUNCE malformed")
             await self.gossip.close_api(self)
@@ -118,7 +118,12 @@ class Api_connection:
     async def __handle_gossip_notify(self, buf):
         """adds the API user to our Subscriber dictionary
         """
-        (datatype) = parse_gossip_notify(buf)
+        tmp = parse_gossip_notify(buf)
+        if tmp is None:
+            logging.info(f"[API] Disconnecting API user {self} -" +
+                         "GOSSIP_NOTIFY malformed")
+            await self.gossip.close_api(self)
+        (datatype) = tmp
         await self.gossip.add_subscriber(datatype, self)
 
         logging.debug(f"[API] {self} subscribed to datatype {datatype}")
@@ -128,7 +133,12 @@ class Api_connection:
         """after a GOSSIP_ANNOUNCE to an API user we receive a
         GOSSIP_VALIDATION; if its negative we do not spread further.
         """
-        (msg_id, valid) = parse_gossip_validation(buf)
+        tmp = parse_gossip_validation(buf)
+        if tmp is None:
+            logging.info(f"[API] Disconnecting API user {self} -" +
+                         "GOSSIP_VALIDATION malformed")
+            await self.gossip.close_api(self)
+        (msg_id, valid) = tmp
         await self.gossip.handle_gossip_validation(msg_id, valid, self)
         return
 
