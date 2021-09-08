@@ -109,9 +109,9 @@ class Test_header_funcs(unittest.TestCase):
 
         # wrong packet: reserved field is not empty
         test_packet = pack(pp.FORMAT_GOSSIP_VALIDATION, 8,
-                           pp.GOSSIP_VALIDATION, 12, 2)
+                           pp.GOSSIP_VALIDATION, 12, 3)
         self.assertEqual(pp.parse_gossip_validation(test_packet),
-                         None, "non-empty reserved field was not caught")
+                         (12, True), "non-empty reserved field threw error")
 
         # wrong packet: too short
         test_packet = pack("!HHH", 6, pp.GOSSIP_VALIDATION, 12)
