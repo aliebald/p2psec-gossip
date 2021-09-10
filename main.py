@@ -17,27 +17,39 @@ def parse_arguments():
        - logfile -- None or path to a file, where logging should be written to
     """
     description = (
-        "This is the module responsible for spreading information in the "
-        "network. Peers spread information that a user is online via this "
-        "module. Other modules may base their functionality on this module "
-        "a mockup version of this module is provided as part of the testing "
-        "module"
+        "The following options can be given when using this program. For a "
+        "general project description, please see the endterm report in the "
+        "docs folder."
     )
+    path_desc = (
+        "Path to the desired config file. This file must be in the Windows "
+        "INI file format and comply with the requirements given in the "
+        "documentation"
+    )
+    verbose_desc = (
+        "If this flag is set, additional debug information will be "
+        "displayed during execution. This Information can give a better and "
+        "more detailed insight into the execution, but is not required for a "
+        "overview over events during execution."
+    )
+    logfile_desc = (
+        "With this option followed by a valid path, all logging will be "
+        "written into the file at the end of the path. If the given file does "
+        "not yet exist, it will be created. Otherwise, new logs will be "
+        "appended to the current content. Note that the folder structure "
+        "given in the path must already exist."
+    )
+
     parser = argparse.ArgumentParser(description=description)
-    parser.add_argument("-p", "--path", type=str,
-                        help="Path to the desired config file")
-    parser.add_argument("-v", "--verbose", action='store_true',
-                        dest="logging",
-                        help="More debug information")
-    parser.add_argument("-f", "--logfile", type=str, dest="logfile_path",
-                        help=("If this is specified, all logging will be "
-                              "written into the file at the end of this path"))
+    parser.add_argument("-p", "--path", type=str, help=path_desc)
+    parser.add_argument("-v", "--verbose", action='store_true', dest="logging",
+                        help=verbose_desc)
+    parser.add_argument("-l", "--logfile", type=str, dest="logfile_path",
+                        help=logfile_desc)
     args = parser.parse_args()
 
     path = args.path if args.path else "./config.ini"
     logfile = args.logfile_path if args.logfile_path else None
-
-    print(args.logging)
 
     log_level = logging.DEBUG if args.logging else logging.INFO
 
