@@ -136,6 +136,11 @@ class Test_header_funcs(unittest.TestCase):
         self.assertEqual(pp.parse_gossip_validation(test_packet),
                          None, "incorrect size-field value threw no error")
 
+    def test_build_gossip_notification(self):
+        test_packet = pp.build_gossip_notification(1, 1, b'')
+        self.assertEqual(pp.parse_gossip_notification(test_packet),
+                         (1, 1, b''))
+
     def test_get_type(self):
         # correct packet
         test_packet = pack(pp.FORMAT_GOSSIP_ANNOUNCE+"H", 10, 500, 0, 0, 0, 0)
@@ -149,6 +154,30 @@ class Test_header_funcs(unittest.TestCase):
 
 # ============================================================================
 # PEER MESSAGES
+
+    def test_parse_peer_announce(self):
+        test_packet = pack(pp.FORMAT_PEER_ANNOUNCE+"H", 18,
+                           pp.PEER_ANNOUNCE, 1, 1, 0, 1, 0)
+        self.assertEqual(pp.parse_peer_announce(test_packet),
+                         (1, 1, 1, b'\x00\x00'))
+
+    def test_parse_peer_discovery(self):
+        test_packet = pack(pp.FORMAT_PEER_DISCOVERY, 12,
+                           pp.PEER_DISCOVERY, 1)
+        self.assertEqual(pp.parse_peer_discovery(test_packet),
+                         1)
+
+    def test_parse_peer_offer(self):
+        test_packet = pack(pp.FORMAT_PEER_OFFER+"H", 22,
+                           pp.PEER_OFFER, 1, 1, 0)
+        self.assertEqual(pp.parse_peer_offer(test_packet),
+                         (1, 1, ['\x00\x00']))
+
+    def test_parse_peer_info(self):
+        test_packet = pack(pp.FORMAT_PEER_INFO, 8, pp.PEER_INFO, 0, 1)
+        self.assertEqual(pp.parse_peer_info(test_packet),
+                         1)
+
     def test_parse_peer_challenge(self):
         # correct packet
         num = randint(0, (2**64)-1)
@@ -168,6 +197,42 @@ class Test_header_funcs(unittest.TestCase):
         test_packet = pack(pp.FORMAT_PEER_VALIDATION, 8,
                            pp.PEER_VALIDATION, 0, True)
         self.assertEqual(pp.parse_peer_validation(test_packet), True)
+
+    def test_pack_peer_announce(self):
+        test_packet = pp.pack_peer_announce(1, 1, 1, b'')
+        self.assertEqual(pp.parse_peer_announce(test_packet),
+                         (1, 1, 1, b''))
+
+    def test_pack_peer_discovery(self):
+        test_packet = pp.pack_peer_discovery(1)
+        self.assertEqual(pp.parse_peer_discovery(test_packet),
+                         (1))
+
+    def test_pack_peer_offer(self):
+        test_packet = pp.pack_peer_offer(1, 1, b'')
+        self.assertEqual(pp.parse_peer_offer(test_packet),
+                         (1, 1, ['']))
+
+    def test_pack_peer_info(self):
+        test_packet = pp.pack_peer_info(1)
+        self.assertEqual(pp.parse_peer_info(test_packet),
+                         (1))
+
+    def test_pack_peer_challenge(self):
+        test_packet = pp.pack_peer_challenge(1)
+        self.assertEqual(pp.parse_peer_challenge(test_packet),
+                         (1))
+
+    def test_pack_peer_verification(self):
+        test_packet = pp.pack_peer_verification(1)
+        self.assertEqual(pp.parse_peer_verification(test_packet),
+                         (1))
+
+    def test_pack_peer_validation(self):
+        test_packet = pp.pack_peer_validation(True)
+        self.assertEqual(pp.parse_peer_validation(test_packet),
+                         (True))
+
 # ============================================================================
 
 
