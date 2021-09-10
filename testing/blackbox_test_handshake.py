@@ -1,60 +1,58 @@
 """Black Box Testing of the central Gossip class.
 HOWTO:
-    1. Run the main.py
+    1. Run the main.py on the default port.
     2. Run this program
-    3. Be patient (~10s)
+    3. Be patient after PEER INFO, we have to wait for the interval (see doc)
 
-We send messages and await a certain correct answer.
-Otherwise the test fails.
+This program is a mock peer that tries to perform the handshake.
 """
 
 import socket
 import asyncio
 from context import packet_parser as pp
-import context.util as util
+from context import util as util
 import hashlib
 
 
 async def main():
     await test_handshake()
-    # await test_peer_announce()
-    # await test_gossip_announce()
     return
 
 
 async def test_handshake():
-    print("[test_handshake] Starting Test...")
     peer = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     print("[test_handshake] Connecting mock peer to our program")
     peer.connect(('127.0.0.1', 6001))
     print("[test_handshake] Sending mock peers PEER INFO")
     peer.send(pp.pack_peer_info(6300))
-    peer.flush()
+    print("[test_handshake] Waiting for the PEER CHALLENGE at the end of the "
+          +
+          "receivers interval...")
     buf = await await_message(peer)
     print("[test_handshake] Received PEER CHALLENGE")
     if len(buf) == int.from_bytes(buf[:2], "big"):
         print("[test_handshake] PEER CHALLENGE size field is correct")
     else:
-        print("[test_handshake] ERROR - PEER CHALLENGE size \
-               field is not correct")
+        print("[test_handshake] ERROR - PEER CHALLENGE size " +
+              "field is not correct")
     if int.from_bytes(buf[2:4], "big") == pp.PEER_CHALLENGE:
         print("[test_handshake] PEER CHALLENGE message type is correct")
     else:
-        print("[test_handshake] ERROR - PEER CHALLENGE message \
-               type is not correct")
+        print("[test_handshake] ERROR - PEER CHALLENGE message " +
+              "type is not correct")
     challenge = pp.parse_peer_challenge(buf)
     # TODO check for None
     nonce = util.produce_pow_peer_challenge(challenge)
     # Send PEER VERIFICATION
-    print("Sending PEER CHALLENGE...")
+    print("[test_handshake] Sending PEER VERIFICATION after calculating nonce")
     peer.send(pp.pack_peer_verification(nonce))
-    peer.flush()
 
-    buf = await_message(peer)
+    buf = await await_message(peer)
     if pp.get_header_type(buf) == pp.PEER_VALIDATION:
-        print("[test_handshake] PEER VALIDATION message type is correct")
+        print("[test_handshake] PEER VALIDATION message received!")
 
     peer.close()
+    print("[test_handshake] Test complete")
     return
 
 
