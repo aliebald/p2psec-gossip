@@ -40,7 +40,7 @@ def __check_min_connections(config):
 
 def __check_max_connections(config):
     """Checks if
-    - max_connections >= 2
+    - max_connections >= 2 (at least one push and one pull peer)
     - max_connections >= min_connections
     """
     if config.max_connections < 2:
@@ -56,7 +56,7 @@ def __check_max_connections(config):
 def __check_degree(config):
     """Checks if
     - degree <= max_connections
-    - degree <= min_connections
+    - degree <= min_connections (always keep at least degree many peers)
     - degree > 0"""
     if config.degree > config.max_connections:
         raise KeyError(f"degree ({config.degree}) must be less than or equal "
@@ -66,7 +66,7 @@ def __check_degree(config):
         raise KeyError(f"degree ({config.degree}) must be greater than or "
                        f"equal to min_connections ({config.min_connections})")
 
-    if config.degree < 0:
+    if config.degree <= 0:
         raise KeyError(f"degree ({config.degree}) must be greater than 0")
 
 
@@ -80,8 +80,8 @@ def __check_search_cooldown(config):
 def __check_challenge_cooldown(config):
     """Checks if challenge_cooldown greater than 0"""
     if config.search_cooldown <= 0:
-        raise KeyError(f"challenge_cooldown ({config.search_cooldown}) must be "
-                       "greater than 0")
+        raise KeyError(f"challenge_cooldown ({config.search_cooldown}) must be"
+                       " greater than 0")
 
 
 def __check_bootstrapper(config):
@@ -132,7 +132,7 @@ def __is_valid_ip(ip):
             int(port)
         except ValueError:
             return False
-        return True
+        return int(port) <= 2**16-1
 
     try:
         ip, port = parse_ip(ip)
@@ -179,7 +179,7 @@ config_config = {
         },
         "challenge_cooldown": {
             "required": False,
-            "default": 120,
+            "default": 300,
             "type": int,
             "checks": __check_challenge_cooldown
         },
