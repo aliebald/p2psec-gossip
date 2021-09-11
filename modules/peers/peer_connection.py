@@ -9,9 +9,8 @@ from random import getrandbits
 
 from modules.util import (
     produce_pow_peer_challenge,
-    produce_pow_peer_offer,
-    valid_nonce_peer_challenge,
-    valid_nonce_peer_offer)
+    valid_nonce_peer_challenge
+)
 from modules.packet_parser import (
     PEER_ANNOUNCE,
     PEER_CHALLENGE,
@@ -20,6 +19,7 @@ from modules.packet_parser import (
     PEER_INFO,
     PEER_VALIDATION,
     PEER_VERIFICATION,
+    check_peer_discovery,
     get_header_type,
     pack_peer_announce,
     pack_peer_challenge,
@@ -30,7 +30,6 @@ from modules.packet_parser import (
     pack_peer_verification,
     parse_peer_announce,
     parse_peer_challenge,
-    parse_peer_discovery,
     parse_peer_offer,
     parse_peer_info,
     parse_peer_validation,
@@ -41,6 +40,10 @@ from modules.packet_parser import (
 # Timeout for challenges in seconds. After this timeout, a challenge is invalid
 CHALLENGE_TIMEOUT = 300
 
+# Timeout for peer offers. After sending a peer discovery, a peer offer is only
+# handled if it was send within this timeframe
+PEER_OFFER_TIMEOUT = 300
+
 
 class Peer_connection:
     """A Peer_connection represents a connection to a single peer.
@@ -50,9 +53,6 @@ class Peer_connection:
     - reader (StreamReader) -- (private) asyncio StreamReader of connected peer
     - writer (StreamWriter) -- (private) asyncio StreamWriter of connected peer
     - peer_p2p_listening_port (int) -- p2p_listening_port of connected peer
-    - last_challenges -- (private) list of send challenges combined with a
-      timeout. Format: [(challenge, timeout)] When the current time is greater
-      than timeout, the challenge is no longer valid
     - peer_challenge (Tuple: int, int) -- challenge with timeout send to
       connected node. None if none was send.
     - validated_them (boolean) -- Whether the connected node is validated /
@@ -62,6 +62,10 @@ class Peer_connection:
     - validated_us (boolean) -- whether this node is validated by the connected
       node/peer. Gets updated upon receiving a peer validation. If we receive a
       new incoming connection, we assume that this peer trusts us.
+    - last_peer_discovery_send (float) -- time (in seconds since the epoch)
+      when last peer discovery was send. None if none was send or a peer offer
+      was already received. Used to avoid receiving more offers than we request
+      by sending peer discoveries
     """
 
     def __init__(self, reader, writer, gossip, peer_p2p_listening_port=None,
@@ -86,9 +90,9 @@ class Peer_connection:
         self.__writer = writer
         self.peer_p2p_listening_port = peer_p2p_listening_port
         self.__peer_challenge = None
-        self.__last_challenges = []
         self.__validated_them = validated_them
         self.__validated_us = validated_us
+        self.__last_peer_discovery_send = None
 
     def __str__(self):
         """Called by str(Peer_connection). Uses the debug address"""
@@ -217,7 +221,8 @@ class Peer_connection:
     async def send_peer_discovery(self):
         """Sends a peer discovery message. Assumes that the connection is
         validated by both sides. Use is_fully_validated to check."""
-        message = pack_peer_discovery(self.__generate_challenge())
+        message = pack_peer_discovery()
+        self.__last_peer_discovery_send = time.time()
         logging.info(f"[PEER] Sending PEER DISCOVERY to: {self}")
         await self.__send(message)
 
@@ -277,12 +282,9 @@ class Peer_connection:
         logging.info(f"[PEER] Sending PEER VERIFICATION to {self}")
         await self.__send(message)
 
-    async def __send_peer_offer(self, challenge):
-        """Figures out a nonce and sends a peer offer. Should only be called if
-        the connection is validated by both sides.
-
-        Arguments:
-        - challenge (int) -- challenge received from original peer discovery
+    async def __send_peer_offer(self):
+        """Sends a peer offer. Should only be called if the connection is
+        validated by both sides.
         """
         # Use target_address to filter the address of the target peer
         target_address = self.get_peer_p2p_listening_address()
@@ -295,14 +297,7 @@ class Peer_connection:
                           "PEER OFFER.")
             return
 
-        # pack peer offer and figure out a valid nonce
-        message = pack_peer_offer(challenge, 0, addresses)
-        message = produce_pow_peer_offer(message)
-        if message == None:
-            logging.warning(
-                "[PEER] Failed to find valid nonce for PEER OFFER!")
-            return
-
+        message = pack_peer_offer(addresses)
         logging.info(
             f"[PEER] Sending PEER OFFER to {self} with peers: {addresses}")
         await self.__send(message)
@@ -315,29 +310,6 @@ class Peer_connection:
         """
         self.__writer.write(message)
         await self.__writer.drain()
-
-    def __generate_challenge(self):
-        """Generates and saves a single use challenge"""
-        challenge = getrandbits(64)
-        timeout = time.time() + CHALLENGE_TIMEOUT
-        self.__last_challenges.append((challenge, timeout))
-        return challenge
-
-    def __check_challenge(self, challenge):
-        """Checks if the given challenge was send from this peer and has not
-        yet expired. Also removes the challenge from the saved challenges.
-
-        Arguments:
-        - challenge (int) -- challenge to check
-
-        Returns:
-            True if the challenge is valid and has not expired.
-        """
-        for (saved_challenge, timeout) in self.__last_challenges:
-            if saved_challenge == challenge:
-                self.__last_challenges.remove((saved_challenge, timeout))
-                return timeout >= time.time()
-        return False
 
     async def __handle_incoming_message(self, buf):
         """Checks the type of an incoming message in byte format and calls the
@@ -428,11 +400,12 @@ class Peer_connection:
         - buf (byte-object) -- received message in byte format. The type must
           be PEER_DISCOVERY
         """
-        challenge = parse_peer_discovery(buf)
-        if (challenge == None):
+        if not check_peer_discovery(buf):
+            logging.debug(
+                f"[PEER] PEER DISCOVERY has incorrect length {len(buf)}")
             return
 
-        await self.__send_peer_offer(challenge)
+        await self.__send_peer_offer()
 
     async def __handle_peer_offer(self, buf):
         """Handles a peer offer message.
@@ -443,19 +416,25 @@ class Peer_connection:
         - buf (byte-object) -- received message in byte format. The type must
           be PEER_DISCOVERY
         """
-        msg = parse_peer_offer(buf)
-        if (msg == None):
-            return
-        (challenge, nonce, data) = msg
-        # Check for invalid challenge
-        if not self.__check_challenge(challenge):
-            logging.warning("[PEER] Received invalid challenge in peer offer")
+        data = parse_peer_offer(buf)
+        if data == None:
             return
 
-        # Check nonce
-        if not valid_nonce_peer_offer(buf):
-            logging.warning("[PEER] Received invalid nonce in peer offer")
+        # Close the peer if we did not send a peer discovery
+        # / not request a peer offer
+        if self.__last_peer_discovery_send == None:
+            logging.info(f"[PEER] Closing {self} because a peer offer was "
+                         "received but no peer discovery was send")
+            await self.gossip.close_peer(self)
             return
+
+        # Ignore offer if it was not send within a specific timeframe
+        if self.__last_peer_discovery_send + PEER_OFFER_TIMEOUT < time.time():
+            logging.debug(f"[PEER] ignoring peer offer from {self} because "
+                          "timeout ran out.")
+            self.__last_peer_discovery_send = None
+            return
+
         # check if the offer contains our own address
         p2p_address = self.gossip.config.p2p_address
         if p2p_address in data:
@@ -464,6 +443,7 @@ class Peer_connection:
             return
 
         # save data / pass it to gossip
+        self.__last_peer_discovery_send = None
         await self.gossip.handle_peer_offer(data)
 
     async def __handle_peer_challenge(self, buf):

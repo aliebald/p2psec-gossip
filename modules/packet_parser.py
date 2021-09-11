@@ -26,8 +26,8 @@ FORMAT_GOSSIP_NOTIFICATION = "!HHHH"
 FORMAT_GOSSIP_VALIDATION = "!HHHH"
 
 FORMAT_PEER_ANNOUNCE = "!HHQBBH"
-FORMAT_PEER_DISCOVERY = "!HHQ"
-FORMAT_PEER_OFFER = "!HHQQ"
+FORMAT_PEER_DISCOVERY = "!HH"
+FORMAT_PEER_OFFER = "!HH"
 FORMAT_PEER_INFO = "!HHHH"
 FORMAT_PEER_CHALLENGE = "!HHQ"
 FORMAT_PEER_VERIFICATION = "!HHQ"
@@ -275,30 +275,22 @@ def parse_peer_announce(buf):
     return (id, ttl, data_type, buf[16:])
 
 
-def parse_peer_discovery(buf):
-    """Parses a peer discovery message to a human-readable tuple
-    [!] Does (currently) not check for any correctness in the body fields!
-    Assumes that the message type is PEER_DISCOVERY.
+def check_peer_discovery(buf):
+    """Checks if the length of the package is correct and equal to the size
+    field.
 
     Arguments:
     - buf (byte-object) -- packet
 
-    Returns: challenge (int) or None if an error occurred
+    Returns: boolean -- true if the packet is valid
     """
     # check header: size
-    if not __check_size(buf):
+    if not __check_size(buf) or len(buf) != 4:
         logging.debug(
             "[PARSER] Incorrect packet size in parse_peer_discovery")
-        return None
+        return False
 
-    try:
-        (_, _, challenge) = unpack(FORMAT_PEER_DISCOVERY, buf)
-    except error as e:
-        logging.debug("[PARSER] Struct parsing error in parse_peer_discovery. "
-                      f"Error: {e}")
-        return None
-
-    return challenge
+    return True
 
 
 def parse_peer_offer(buf):
@@ -311,23 +303,15 @@ def parse_peer_offer(buf):
 
     Returns:
     - None if an error occurred, otherwise:
-    - tuple (challenge, nonce, data)
-      as    (int,       int,   str list)
+    - data (str list)
     """
     # check header: size
     if not __check_size(buf):
         logging.debug("[PARSER] Incorrect packet size in parse_peer_offer")
         return None
 
-    try:
-        (_, _, challenge, nonce) = unpack(FORMAT_PEER_OFFER, buf[:20])
-    except error as e:
-        logging.debug("[PARSER] Struct parsing error in parse_peer_offer. "
-                      f"Error: {e}")
-        return None
-
     data = (buf[20:].decode("utf-8").split(","),)
-    return (challenge, nonce) + data
+    return data
 
 
 def parse_peer_info(buf):
@@ -430,30 +414,26 @@ def pack_peer_announce(id, ttl, data_type, data):
     return buf
 
 
-def pack_peer_discovery(challenge):
+def pack_peer_discovery():
     """Packs a peer discovery message as byte-object.
-
-    Arguments:
-    - challenge (int) -- challenge for peer offer response.
 
     Returns: packet as byte-object
     """
-    buf = pack(FORMAT_PEER_DISCOVERY, 12, PEER_DISCOVERY, challenge)
+    buf = pack(FORMAT_PEER_DISCOVERY, 12, PEER_DISCOVERY)
     return buf
 
 
-def pack_peer_offer(challenge, nonce, data):
+def pack_peer_offer(data):
     """Packs a peer offer message as byte-object.
 
     Arguments:
-    - challenge (int) -- challenge received from original peer discovery.
-    - nonce (int) -- nonce according to documentation
+    - data (str List) -- addresses to send in this message
 
     Returns: packet as byte-object
     """
     data_bytes = (",".join(data)).encode("utf-8")
-    size = 20 + len(data_bytes)
-    buf = pack(FORMAT_PEER_OFFER, size, PEER_OFFER, challenge, nonce)
+    size = 4 + len(data_bytes)
+    buf = pack(FORMAT_PEER_OFFER, size, PEER_OFFER)
     return buf + data_bytes
 
 
