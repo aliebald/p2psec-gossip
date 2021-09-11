@@ -419,7 +419,7 @@ def pack_peer_discovery():
 
     Returns: packet as byte-object
     """
-    buf = pack(FORMAT_PEER_DISCOVERY, 12, PEER_DISCOVERY)
+    buf = pack(FORMAT_PEER_DISCOVERY, 4, PEER_DISCOVERY)
     return buf
 
 
