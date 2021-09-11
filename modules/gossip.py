@@ -5,6 +5,7 @@ TODO: Description of gossip functionality?
 
 import asyncio
 import logging
+from modules.config import parse_ip
 from random import (randint, sample, shuffle)
 from math import (floor, ceil)
 from time import time
@@ -79,7 +80,7 @@ class Gossip:
         peers and waits for new incoming connections.
         """
         # connect to peers in config
-        (_, p2p_listening_port) = self.config.p2p_address.split(":")
+        (_, p2p_listening_port) = parse_ip(self.config.p2p_address)
         num_known_peers = len(self.config.known_peers)
         if num_known_peers > 0:
             logging.debug(
@@ -95,7 +96,7 @@ class Gossip:
                 [self.config.bootstrapper], self, int(p2p_listening_port))
 
         # start API connection handler
-        (api_host, api_port) = self.config.api_address.split(":")
+        (api_host, api_port) = parse_ip(self.config.api_address)
         asyncio.create_task(connection_handler(
             api_host, int(api_port), self.__on_api_connection))
         logging.debug("[API] started API connection handler on {}:{}\r\n"
@@ -109,7 +110,7 @@ class Gossip:
             asyncio.create_task(peer.run())
 
         # start peer connection handler
-        (host, port) = self.config.p2p_address.split(":")
+        (host, port) = parse_ip(self.config.p2p_address)
         await connection_handler(host, int(port), self.__on_peer_connection)
 
     def __on_api_connection(self, reader, writer):
@@ -186,7 +187,7 @@ class Gossip:
 
         logging.debug(f"[PEER] Candidates: {candidates}")
         shuffle(candidates)
-        (_, p2p_listening_port) = self.config.p2p_address.split(":")
+        (_, p2p_listening_port) = parse_ip(self.config.p2p_address)
         # missing_peers to reach max_pull_peers
         missing_peers = self.__max_pull_peers - len(self.__pull_peers)
 
@@ -197,7 +198,7 @@ class Gossip:
             connect_to = candidates[:min(missing_peers, len(candidates))]
             candidates = candidates[min(missing_peers, len(candidates)):]
             new_peers = await peer_connection_factory(
-                connect_to, self, int(p2p_listening_port))
+                connect_to, self, p2p_listening_port)
             self.__pull_peers += new_peers
             missing_peers -= len(new_peers)
             # start new peers

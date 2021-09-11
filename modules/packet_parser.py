@@ -310,7 +310,7 @@ def parse_peer_offer(buf):
         logging.debug("[PARSER] Incorrect packet size in parse_peer_offer")
         return None
 
-    data = (buf[20:].decode("utf-8").split(","),)
+    data = buf[4:].decode("utf-8").split(",")
     return data
 
 

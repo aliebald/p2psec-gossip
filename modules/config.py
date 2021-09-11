@@ -3,12 +3,25 @@ This module provides the Config class, which s abstracts the parsing required
 to read config files and provides easy access to the variables inside the given
 configfile.
 
+Additionally, the parse_ip function provided in this module can be used to parse
+IPv4 or IPv6 addresses with port into a tuple (See parse_ip)
+
 In this file there are also a few checks and a format for the config class. The
 class itself can be found bellow those.
 """
 
 from configparser import ConfigParser
 import ipaddress
+
+
+def parse_ip(address):
+    """Parses an IPv4 or IPv6 followed by a port (format: <ip>:<port>).
+    Returns a tuple with (address -- str, port -- int).
+
+    Throws an ValueError if the given address is invalid.
+    """
+    split_at = address.rindex(':')
+    return (address[:split_at], int(address[split_at+1:]))
 
 
 def __check_cache_size(config):
@@ -121,12 +134,8 @@ def __is_valid_ip(ip):
             return False
         return True
 
-    address = ip.split(":")
-    if len(address) != 2:
-        return False
-
-    ip, port = address
     try:
+        ip, port = parse_ip(ip)
         ipaddress.ip_address(ip)
     except ValueError:
         return False
