@@ -1,5 +1,6 @@
-"""This module provides utility functions that don't fit elsewhere."""
-# TODO: move PoW Generator here
+"""This module provides utility functions that don't fit elsewhere.
+Contains Setqueue class / datastructure and proof of work (pow) functions for
+peer challenge"""
 
 import queue
 import logging
@@ -49,7 +50,7 @@ def valid_nonce_peer_challenge(challenge, nonce):
         nonce = int(nonce).to_bytes(8, 'big')
 
     hash = hashlib.sha256(challenge + nonce).hexdigest()
-    return hash[:4] == '0000'
+    return hash[:6] == '000000'
 
 
 def produce_pow_peer_challenge(challenge):
