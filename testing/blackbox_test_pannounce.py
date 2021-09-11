@@ -36,7 +36,7 @@ async def test_peer_announce():
                              pp.GOSSIP_NOTIFY, 0, 1))
 
     # Connect peers, perform handshake
-    print("Connecting peers, performing Handshake")
+    print("Connecting peers, performing Handshake by waiting for intervall..")
     peer1.connect(('127.0.0.1', 6001))
     task_handshake1 = asyncio.create_task(perform_handshake(peer1, 6001))
     peer2.connect(('127.0.0.1', 6001))
@@ -53,7 +53,6 @@ async def test_peer_announce():
     api_tasks = asyncio.gather(task_api1, task_api2)
 
     task_p2 = asyncio.create_task(peer2_handler(peer2))
-    print("Peer2 Handler started")
 
     # Send PEER_ANNOUNCE with Peer1
     peer1.send(pp.pack_peer_announce(1, 2, 1, b''))
@@ -61,8 +60,7 @@ async def test_peer_announce():
 
     await api_tasks
 
-    api1.send(struct.pack(pp.FORMAT_GOSSIP_VALIDATION, 8,
-              pp.GOSSIP_VALIDATION, 1, 1))
+    await task_p2
 
     close_all([api1, api2, peer1, peer2])
     return
@@ -119,6 +117,8 @@ async def api2_handler(socket):
     mtype = pp.get_header_type(buf)
     if mtype == pp.GOSSIP_NOTIFICATION:
         print("[+] Received GOSSIP NOTIFICATION with Api2")
+        socket.send(struct.pack(pp.FORMAT_GOSSIP_VALIDATION, 8,
+                    pp.GOSSIP_VALIDATION, 1, 1))
     else:
         print("[-]: Did not receive GOSSIP NOTIFICATION with Api2")
     return
