@@ -177,7 +177,7 @@ class Gossip:
         logging.info(f"[PEER] Offer contained: {peer_addresses}")
         # remove already connected peers
         all_peers = list(self.__push_peers) + \
-            self.__pull_peers + self.__unverified_peers
+            self.__pull_peers + list(self.__unverified_peers)
         connected = self.get_peer_addresses(all_peers)
         candidates = list(filter(lambda x: x not in connected, peer_addresses))
 
@@ -212,7 +212,8 @@ class Gossip:
           is not None, the addresses contained within the list will be returned
           If this is None, the addresses of push_peers and pull_peers will be
           returned.
-          This can be used to exclusively get the addresses of pull or push peers.
+          This can be used to exclusively get the addresses of pull or push
+          peers.
 
         Returns:
             List of strings with format: <host_ip>:<port>
