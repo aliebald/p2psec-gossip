@@ -2,12 +2,12 @@
 HOWTO:
     1. Run the main.py
     2. Run this program
-    3. Be patient (~10s)
 
 - Connects 2 APIs
 - Connects 1 Peer
 - Subscribe with both APIs to "1"
 - Send GOSSIP ANNOUNCE with Api1 with datatype "1"
+- Check if we received PEER ANNOUNCE at the Peer
 """
 
 import socket
@@ -53,12 +53,11 @@ async def test_gossip_announce():
     # Start Handler of Api2
     # Start Handler of Peer
     # Send GOSSIP ANNOUNCE with Api1
-    t1 = asyncio.create_task(api2_handler(api2))
-    t2 = asyncio.create_task(peer_handler(peer))
-    tasks = asyncio.gather(t1, t2)
-    api1.sendall(struct.pack(pp.FORMAT_GOSSIP_ANNOUNCE+"H", 12,
+    t = asyncio.create_task(peer_handler(peer))
+
+    api1.sendall(struct.pack(pp.FORMAT_GOSSIP_ANNOUNCE+"H", 10,
                              pp.GOSSIP_ANNOUNCE, 2, 0, 1, 0))
-    await tasks
+    await t
     close_all([api1, api2, peer])
     return
 
