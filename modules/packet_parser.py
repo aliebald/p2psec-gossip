@@ -209,7 +209,6 @@ def parse_gossip_validation(buf):
         return None
 
     # valid: test if first bit is set
-    # https://stackoverflow.com/a/2576713
     return (id, valid & 1 != 0)
 
 
@@ -391,7 +390,6 @@ def parse_peer_validation(buf):
 
     (_, _, _, valid) = unpack(FORMAT_PEER_VALIDATION, buf)
     # valid: test if first bit is set
-    # https://stackoverflow.com/a/2576713
     return valid & 1 != 0
 
 

@@ -109,6 +109,7 @@ class Api_connection:
             logging.info(f"[API] Disconnecting API user {self} -" +
                          "GOSSIP_ANNOUNCE malformed")
             await self.gossip.close_api(self)
+            return
 
         (ttl, dtype, data) = tmp
 
@@ -123,6 +124,7 @@ class Api_connection:
             logging.info(f"[API] Disconnecting API user {self} -" +
                          "GOSSIP_NOTIFY malformed")
             await self.gossip.close_api(self)
+            return
         (datatype) = tmp
         await self.gossip.add_subscriber(datatype, self)
 
@@ -138,6 +140,7 @@ class Api_connection:
             logging.info(f"[API] Disconnecting API user {self} -" +
                          "GOSSIP_VALIDATION malformed")
             await self.gossip.close_api(self)
+            return
         (msg_id, valid) = tmp
         await self.gossip.handle_gossip_validation(msg_id, valid, self)
         return
