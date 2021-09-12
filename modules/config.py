@@ -14,15 +14,15 @@ from modules.util import is_valid_address
 def __check_cache_size(config):
     """Checks if the cache_size is greather than 0"""
     if config.cache_size <= 0:
-        raise KeyError(f"cache_size ({config.cache_size}) must be greater than"
-                       " 0")
+        raise ValueError(f"cache_size ({config.cache_size}) must be greater "
+                         "than 0")
 
 
 def __check_min_connections(config):
     """Checks if min_connections >= 0"""
     if config.min_connections < 0:
-        raise KeyError(f"min_connections ({config.min_connections}) must be "
-                       "greater than or equal to 0")
+        raise ValueError(f"min_connections ({config.min_connections}) must be "
+                         "greater than or equal to 0")
 
 
 def __check_max_connections(config):
@@ -31,13 +31,13 @@ def __check_max_connections(config):
     - max_connections >= min_connections
     """
     if config.max_connections < 2:
-        raise KeyError(f"max_connections ({config.max_connections}) must be "
-                       "greater than or equal to 2")
+        raise ValueError(f"max_connections ({config.max_connections}) must be "
+                         "greater than or equal to 2")
 
     if config.max_connections < config.min_connections:
-        raise KeyError(f"max_connections ({config.max_connections}) must be "
-                       "greater than 0 and greater than or equal to "
-                       f"min_connections ({config.min_connections})")
+        raise ValueError(f"max_connections ({config.max_connections}) must be "
+                         "greater than 0 and greater than or equal to "
+                         f"min_connections ({config.min_connections})")
 
 
 def __check_degree(config):
@@ -46,50 +46,54 @@ def __check_degree(config):
     - degree <= min_connections (always keep at least degree many peers)
     - degree > 0"""
     if config.degree > config.max_connections:
-        raise KeyError(f"degree ({config.degree}) must be less than or equal "
-                       f"to max_connections ({config.max_connections})")
+        raise ValueError(f"degree ({config.degree}) must be less than or equal"
+                         f" to max_connections ({config.max_connections})")
 
     if config.degree > config.min_connections:
-        raise KeyError(f"degree ({config.degree}) must be greater than or "
-                       f"equal to min_connections ({config.min_connections})")
+        raise ValueError(
+            f"degree ({config.degree}) must be greater than or "
+            f"equal to min_connections ({config.min_connections})")
 
     if config.degree <= 0:
-        raise KeyError(f"degree ({config.degree}) must be greater than 0")
+        raise ValueError(f"degree ({config.degree}) must be greater than 0")
 
 
 def __check_search_cooldown(config):
     """Checks if search_cooldown greater than 0"""
     if config.search_cooldown <= 0:
-        raise KeyError(f"search_cooldown ({config.search_cooldown}) must be "
-                       "greater than 0")
+        raise ValueError(f"search_cooldown ({config.search_cooldown}) must be "
+                         "greater than 0")
 
 
 def __check_challenge_cooldown(config):
     """Checks if challenge_cooldown greater than 0"""
     if config.search_cooldown <= 0:
-        raise KeyError(f"challenge_cooldown ({config.search_cooldown}) must be"
-                       " greater than 0")
+        raise ValueError(f"challenge_cooldown ({config.search_cooldown}) must "
+                         "be greater than 0")
 
 
 def __check_bootstrapper(config):
     """Checks if the bootstrapper is in a valid format"""
     if not is_valid_address(config.bootstrapper):
-        raise KeyError(f"bootstrapper ({config.bootstrapper}) is not in a "
-                       "valid format. The format must be: <ip_address>:<port>")
+        raise ValueError(
+            f"bootstrapper ({config.bootstrapper}) is not in a "
+            "valid format. The format must be: <ip_address>:<port>")
 
 
 def __check_p2p_address(config):
     """Checks if the p2p_address is in a valid format"""
     if not is_valid_address(config.p2p_address):
-        raise KeyError(f"p2p_address ({config.p2p_address}) is not in a "
-                       "valid format. The format must be: <ip_address>:<port>")
+        raise ValueError(
+            f"p2p_address ({config.p2p_address}) is not in a "
+            "valid format. The format must be: <ip_address>:<port>")
 
 
 def __check_api_address(config):
     """Checks if the api_address is in a valid format"""
     if not is_valid_address(config.api_address):
-        raise KeyError(f"api_address ({config.api_address}) is not in a "
-                       "valid format. The format must be: <ip_address>:<port>")
+        raise ValueError(
+            f"api_address ({config.api_address}) is not in a "
+            "valid format. The format must be: <ip_address>:<port>")
 
 
 def __check_known_peers(config):
@@ -100,13 +104,13 @@ def __check_known_peers(config):
     peers = config.known_peers.replace(" ", "").split(",")
     # check for duplicates:
     if len(peers) != len(set(peers)):
-        raise KeyError("known_peers must not contain duplicates."
-                       f"known_peers: {config.known_peers}")
+        raise ValueError("known_peers must not contain duplicates."
+                         f"known_peers: {config.known_peers}")
 
     for peer in peers:
         if not is_valid_address(peer):
-            raise KeyError(f"known_peers address ({peer}) is not in a valid "
-                           "format. The format must be: <ip_address>:<port>")
+            raise ValueError(f"known_peers address ({peer}) is not in a valid "
+                             "format. The format must be: <ip_address>:<port>")
 
 
 # config blueprint.
@@ -173,7 +177,7 @@ config_config = {
 class Config:
     """The config class abstracts the parsing required to read config files
     and provides easy access to the variables inside the given configfile.
-    If a required field is not found, a KeyError exception is raised.
+    If a required field is not found, a ValueError exception is raised.
 
     Class variables:
     - cache_size: see readme
@@ -244,7 +248,7 @@ class Config:
         if section not in configparser:
             error = ("The section \"{}\" is missing in the config. Please "
                      "refer to the README for information").format(section)
-            raise KeyError(error)
+            raise ValueError(error)
 
     def __check_key_exists(self, configparser, section, key):
         """Checks if the given key exists. Throws an KeyError if not.
@@ -255,7 +259,7 @@ class Config:
             error = ("\"{}\" is missing in the {} section of the "
                      "config. Please refer to the README for information."
                      ).format(key, section)
-            raise KeyError(error)
+            raise ValueError(error)
 
     def __check_config(self):
         """Executes all checks given in the config_config"""

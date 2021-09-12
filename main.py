@@ -76,8 +76,9 @@ def setup_logger(level, logfile):
 async def main():
     # This script requires Python version 3.9 or newer to run
     if not sys.version_info >= (3, 9):
-        raise EnvironmentError("Python version 3.9 or newer is required. "
-                               f"(detected: {sys.version})")
+        print("Python version 3.9 or newer is required. "
+              f"(detected: {sys.version})")
+        return
     os.chdir(os.path.dirname(os.path.abspath(sys.argv[0])))
 
     (path, log_level, logfile) = parse_arguments()
@@ -91,7 +92,15 @@ async def main():
         return
 
     logging.info(f"Starting Gossip. Config path: \"{path}\"")
-    config = Config(path)
+    try:
+        config = Config(path)
+    except ValueError as e:
+        logging.critical(f"[Config error] {e}")
+        return
+    except IOError as e:
+        logging.critical(f"[Config error] {e}")
+        return
+
     logging.info(config)
     await Gossip(config).run()
 
