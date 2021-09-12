@@ -9,6 +9,7 @@ from random import getrandbits
 
 from modules.util import (
     parse_address,
+    is_valid_address,
     produce_pow_peer_challenge,
     valid_nonce_peer_challenge
 )
@@ -420,6 +421,21 @@ class Peer_connection:
         data = parse_peer_offer(buf)
         if data == None:
             return
+
+        # Close the connection if the offer contained no data
+        if data == ['']:
+            logging.info(f"[PEER] Closing {self} because a empty peer offer "
+                         "was received.")
+            await self.gossip.close_peer(self)
+            return
+
+        for address in data:
+            if not is_valid_address(address):
+                logging.info(
+                    f"[PEER] Closing {self} because peer offer contained "
+                    f"invalid address: {address}, data: {data}.")
+                await self.gossip.close_peer(self)
+                return
 
         # Close the peer if we did not send a peer discovery
         # / not request a peer offer
