@@ -25,11 +25,14 @@ class Gossip:
     - config (Config) -- config object used for this instance of gossip
     - push_peers (Peer_connection deque) -- Connected (active) push peers /
       peers that connected to us. Limited to max_push_peers.
+      -> corresponding lock: push_peers_lock
     - pull_peers (Peer_connection List) -- Connected (active) pull peers /
       peers we learned about from other peers and than connected to.
+      -> corresponding lock: pull_peers_lock
     - unverified_peers (Peer_connection deque) -- peers that connected to us
       that still need to be verified. After beeing verified, they will be moved
       into push_peers. Limited to config.cache_size
+      -> corresponding lock: unverified_peers_lock
     - max_push_peers (int) -- push_peers capacity
     - max_pull_peers (int) -- pull_peers capacity
     - apis (Api_connection List) -- connected APIs
@@ -40,6 +43,11 @@ class Gossip:
       PEER_ANNOUNCES. PEER_ANNOUNCES Will be forwarded if/when all subscribers
       verify the message.
       Format: message-id : [(ttl, datatype, data, [datasubs])]
+
+    The locks should be acquired in the following order:
+    1) unverified_peers_lock
+    2) pull_peers_lock
+    3) push_peers_lock
     """
 
     def __init__(self, config):
@@ -49,17 +57,21 @@ class Gossip:
         """
         self.config = config
 
-        # TODO floor / ceil?
         self.__max_push_peers = floor(self.config.max_connections / 2)
         self.__max_pull_peers = ceil(self.config.max_connections / 2)
 
         # Push peers that connected to us
         self.__push_peers = deque(maxlen=self.__max_push_peers)
+        self.__push_peers_lock = asyncio.Lock()
+
         # Pull peers that we connected to
         self.__pull_peers = []
+        self.__pull_peers_lock = asyncio.Lock()
+
         # unverified push peers
         self.__unverified_peers = deque(maxlen=self.config.cache_size)
         self.__unverified_peers_lock = asyncio.Lock()
+
         self.apis = []
 
         #                          Key - Value
@@ -85,15 +97,25 @@ class Gossip:
         if num_known_peers > 0:
             logging.debug(
                 f"[PEER] Connecting to {num_known_peers} known peers")
-            self.__pull_peers = await peer_connection_factory(
-                self.config.known_peers, self, int(p2p_listening_port))
+            async with self.__pull_peers_lock:
+                self.__pull_peers = await peer_connection_factory(
+                    self.config.known_peers, self, int(p2p_listening_port))
 
         # No known_peers in config or all where unreachable
         # -> Connect to bootstrapping node
-        if len(self.__pull_peers) == 0:
-            logging.debug("[PEER] Connecting to bootstrapping node")
-            self.__pull_peers = await peer_connection_factory(
-                [self.config.bootstrapper], self, int(p2p_listening_port))
+        async with self.__pull_peers_lock:
+            if len(self.__pull_peers) == 0:
+                logging.debug("[PEER] Connecting to bootstrapping node")
+                self.__pull_peers = await peer_connection_factory(
+                    [self.config.bootstrapper], self, int(p2p_listening_port))
+
+        # Start active peers
+        async with self.__pull_peers_lock:
+            for peer in self.__pull_peers:
+                asyncio.create_task(peer.run())
+
+        asyncio.create_task(self.__run_peer_control())
+        asyncio.create_task(self.__run_verifier())
 
         # start API connection handler
         (api_host, api_port) = parse_address(self.config.api_address)
@@ -101,13 +123,6 @@ class Gossip:
             api_host, int(api_port), self.__on_api_connection))
         logging.debug("[API] started API connection handler on {}:{}\r\n"
                       .format(api_host, api_port))
-
-        asyncio.create_task(self.__run_peer_control())
-        asyncio.create_task(self.__run_verifier())
-
-        # Start active peers
-        for peer in self.__pull_peers:
-            asyncio.create_task(peer.run())
 
         # start peer connection handler
         (host, port) = parse_address(self.config.p2p_address)
@@ -158,13 +173,14 @@ class Gossip:
             logging.warning("[PEER] Peer not found in unverified_peers")
 
         # Dosconnect the oldest push peer if we reached max_push_peers
-        if len(self.__push_peers) >= self.__max_push_peers:
-            oldest_peer = self.__push_peers.pop()
-            logging.debug(
-                f"Disconnecting {oldest_peer}, because max_push_peers "
-                f"({self.__max_push_peers}) is reached")
-            await self.close_peer(oldest_peer)
-        self.__push_peers.appendleft(peer)
+        async with self.__push_peers_lock:
+            if len(self.__push_peers) >= self.__max_push_peers:
+                oldest_peer = self.__push_peers.pop()
+                logging.debug(
+                    f"Disconnecting {oldest_peer}, because max_push_peers "
+                    f"({self.__max_push_peers}) is reached")
+                await self.close_peer(oldest_peer, has_push_peers_lock=True)
+            self.__push_peers.appendleft(peer)
 
     async def handle_peer_offer(self, peer_addresses):
         """Offers peer_addresses to this gossip class. Gets called after a peer
@@ -174,18 +190,22 @@ class Gossip:
         - peer_addresses (str List) -- addresses of potential peers, received
           from peer offer. format: host_ip:port
         """
-        if len(self.__pull_peers) > self.__max_pull_peers:
-            logging.debug("[PEER] Ignoring peer offer because pull peers "
-                          f"capacity is reached ({len(self.__pull_peers)}/"
-                          f"{self.__max_pull_peers})")
-            return
-
+        async with self.__pull_peers_lock:
+            if len(self.__pull_peers) > self.__max_pull_peers:
+                logging.debug("[PEER] Ignoring peer offer because pull peers "
+                              f"capacity is reached ({len(self.__pull_peers)}/"
+                              f"{self.__max_pull_peers})")
+                return
         logging.info(f"[PEER] Offer contained: {peer_addresses}")
-        # remove already connected peers
+
+        # get addresses of all peers and remove already connected peers
         async with self.__unverified_peers_lock:
-            all_peers = list(self.__push_peers) + \
-                self.__pull_peers + list(self.__unverified_peers)
-        connected = self.get_peer_addresses(all_peers)
+            all_peers = list(self.__unverified_peers).copy()
+        async with self.__pull_peers_lock:
+            all_peers += self.__pull_peers
+        async with self.__push_peers_lock:
+            all_peers += list(self.__push_peers)
+        connected = await self.get_peer_addresses(all_peers)
         candidates = list(filter(lambda x: x not in connected, peer_addresses))
 
         if len(candidates) == 0:
@@ -194,24 +214,26 @@ class Gossip:
         logging.debug(f"[PEER] Candidates: {candidates}")
         shuffle(candidates)
         (_, p2p_listening_port) = parse_address(self.config.p2p_address)
-        # missing_peers to reach max_pull_peers
-        missing_peers = self.__max_pull_peers - len(self.__pull_peers)
 
-        # Open connections to missing_peers new Peers. If a peer did not
-        # respond / a connection attempt failed, repeat until we reach the
-        # max_pull_peers or no candidates are left
-        while missing_peers > 0 and len(candidates) > 0:
-            connect_to = candidates[:min(missing_peers, len(candidates))]
-            candidates = candidates[min(missing_peers, len(candidates)):]
-            new_peers = await peer_connection_factory(
-                connect_to, self, p2p_listening_port)
-            self.__pull_peers += new_peers
-            missing_peers -= len(new_peers)
-            # start new peers
-            for peer in new_peers:
-                asyncio.create_task(peer.run())
+        async with self.__pull_peers_lock:
+            # missing_peers to reach max_pull_peers
+            missing_peers = self.__max_pull_peers - len(self.__pull_peers)
 
-    def get_peer_addresses(self, peerlist=None):
+            # Open connections to missing_peers new Peers. If a peer did not
+            # respond / a connection attempt failed, repeat until we reach the
+            # max_pull_peers or no candidates are left
+            while missing_peers > 0 and len(candidates) > 0:
+                connect_to = candidates[:min(missing_peers, len(candidates))]
+                candidates = candidates[min(missing_peers, len(candidates)):]
+                new_peers = await peer_connection_factory(
+                    connect_to, self, p2p_listening_port)
+                self.__pull_peers += new_peers
+                missing_peers -= len(new_peers)
+                # start new peers
+                for peer in new_peers:
+                    asyncio.create_task(peer.run())
+
+    async def get_peer_addresses(self, peerlist=None):
         """Returns the p2p listening addresses of all known peers in a list
 
         Arguments:
@@ -219,59 +241,74 @@ class Gossip:
           is not None, the addresses contained within the list will be returned
           If this is None, the addresses of push_peers and pull_peers will be
           returned.
-          This can be used to exclusively get the addresses of pull or push
-          peers.
+          This can be used to exclusively get the addresses of pull, push or
+          unverified peers.
+          If peerlist is None, pull_peers_lock and push_peers_lock are acquired
 
         Returns:
             List of strings with format: <host_ip>:<port>
         """
-        peers = (peerlist if peerlist != None
-                 else list(self.__push_peers) + self.__pull_peers)
+        if peerlist != None:
+            peers = peerlist
+        else:
+            peers = []
+            async with self.__pull_peers_lock:
+                peers += self.__pull_peers
+            async with self.__push_peers_lock:
+                peers += list(self.__push_peers)
 
         addresses = []
         for peer in peers:
             addresses.append(peer.get_peer_p2p_listening_address())
         return list(filter(lambda x: x is not None, addresses))
 
-    async def close_peer(self, peer, has_unverified_lock=False):
+    async def close_peer(self, peer, has_unverified_lock=False,
+                         has_push_peers_lock=False, has_pull_peers_lock=False):
         """Removes a Peer_connection from gossip and calls close on the
         Peer_connection.
-        Tries to acquire the __unverified_peers_lock if has_unverified_lock is
-        false or not given.
 
         Arguments:
         - peer (Peer_connection) -- Peer_connection instance that should be
           closed
         - has_unverified_lock (bool) -- (Default False) whether
           unverified_peers_lock is already acquired
+        - has_push_peers_lock (bool) -- (Default False) whether
+          push_peers_lock is already acquired
+        - has_pull_peers_lock (bool) -- (Default False) whether
+          pull_peers_lock is already acquired
         """
-        async def __close_and_print(peer):
-            await peer.close()
-            await self.__log_connected_peers()
+        async def __check_list(peer, list, lock, has_lock):
+            """Checks if peer is in list. Uses the lock if has_lock is False.
+            Returns True if the peer was found in list and closed"""
+            # already has lock, check unverified_peers
+            if has_lock and peer in list:
+                list.remove(peer)
+                await peer.close()
+                await self.__log_connected_peers()
+                return True
+            # acquire lock and check unverified_peers
+            if not has_lock:
+                async with lock:
+                    if peer in list:
+                        list.remove(peer)
+                        await peer.close()
+                await self.__log_connected_peers()
+                return True
+            return False
 
-        if peer in self.__push_peers:
-            self.__push_peers.remove(peer)
-            await __close_and_print(peer)
+        # Check if the peer is in unverified_peers
+        if __check_list(peer, self.__unverified_peers,
+                        self.__unverified_peers_lock, has_unverified_lock):
             return
 
-        if peer in self.__pull_peers:
-            self.__pull_peers.remove(peer)
-            await __close_and_print(peer)
+        # Check if the peer is in pull_peers
+        if __check_list(peer, self.__pull_peers,
+                        self.__pull_peers_lock, has_pull_peers_lock):
             return
 
-        # already has lock, check unverified_peers
-        if has_unverified_lock and peer in self.__unverified_peers:
-            self.__unverified_peers.remove(peer)
-            await __close_and_print(peer)
-            return
-
-        # acquire lock and check unverified_peers
-        if not has_unverified_lock:
-            async with self.__unverified_peers_lock:
-                if peer in self.__unverified_peers:
-                    self.__unverified_peers.remove(peer)
-                    await peer.close()
-            await self.__log_connected_peers()
+        # Check if the peer is in push_peers
+        if __check_list(peer, self.__push_peers,
+                        self.__push_peers_lock, has_push_peers_lock):
             return
 
         # It can happen that the peer is not in any of the above lists, e.g.
@@ -279,7 +316,8 @@ class Gossip:
         # Peer_connection factory
         logging.debug("[PEER] The Peer that should be closed was not found"
                       " in push_peers, pull_peers or unverified_peers")
-        await __close_and_print(peer)
+        await peer.close()
+        await self.__log_connected_peers()
 
     async def __run_peer_control(self):
         """Searches for new pull peers by sending a peer discovery to all known
@@ -289,34 +327,36 @@ class Gossip:
         """
         while True:
             # True if we can accept more pull peers
-            has_pull_peers_capacity = (
-                len(self.__pull_peers) < self.__max_pull_peers
-            )
-            # True if we need more total peers ro reach min_connections
-            is_bellow_min_connections = (
-                len(self.__pull_peers) + len(self.__push_peers)
-                < self.config.min_connections
-            )
-            # True if we have less than min_connections/2 pull peers
-            is_bellow_min_pull_connections = (
-                len(self.__pull_peers) < ceil(self.config.min_connections / 2)
-            )
+            async with self.__pull_peers_lock:
+                async with self.__push_peers_lock:
+                    has_pull_peers_capacity = (
+                        len(self.__pull_peers) < self.__max_pull_peers
+                    )
+                    # True if we have less than min_connections/2 pull peers
+                    bellow_min_pull_connections = (
+                        len(self.__pull_peers) < ceil(
+                            self.config.min_connections / 2)
+                    )
+                    # True if we need more total peers ro reach min_connections
+                    bellow_min_connections = (
+                        len(self.__pull_peers) + len(self.__push_peers)
+                        < self.config.min_connections
+                    )
+                    # Search for new pull peers if we have capacity and need
+                    # more peer to reach min_connections or if we have less
+                    # than min_connections/2 pull peers (to keep a minimum
+                    # amount of pull peers and avoid only having push peers)
+                    if((has_pull_peers_capacity and (
+                        bellow_min_connections or bellow_min_pull_connections))
+                       ):
+                        logging.info("- - - - - - - - - - - - - -")
+                        logging.info("[PEER] Looking for new Peers")
+                        # Send PeerDiscovery to all validated peers
+                        for peer in list(self.__push_peers)+self.__pull_peers:
+                            if peer.is_fully_validated():
+                                await peer.send_peer_discovery()
 
-            # Search for new pull peers if we have capacity and need more peer
-            # to reach min_connections or if we have less than
-            # min_connections/2 pull peers (to keep a minimum amount of pull
-            # peers and avoid only having push peers)
-            if (has_pull_peers_capacity and
-                (is_bellow_min_connections or is_bellow_min_pull_connections)
-                ):
-                logging.info("- - - - - - - - - - - - - -")
-                logging.info("[PEER] Looking for new Peers")
-                await self.__log_connected_peers()
-                # Send PeerDiscovery
-                for peer in list(self.__push_peers) + self.__pull_peers:
-                    if peer.is_fully_validated():
-                        await peer.send_peer_discovery()
-
+            await self.__log_connected_peers()
             await asyncio.sleep(self.config.search_cooldown)
 
     async def __run_verifier(self):
@@ -344,18 +384,21 @@ class Gossip:
 
     async def __log_connected_peers(self):
         """Logs push and pull peers including capacities.
-        Acquires unverified_peers_lock
+        Acquires __push_peers_lock, __pull_peers_lock and unverified_peers_lock
         """
-        logging.info("[PEER] Connected push peers: {}. {}/{}".format(
-            self.get_peer_addresses(self.__push_peers),
-            len(self.__push_peers), self.__max_push_peers))
-        logging.info("[PEER] Connected pull peers: {}. {}/{}".format(
-            self.get_peer_addresses(self.__pull_peers),
-            len(self.__pull_peers), self.__max_pull_peers))
+        async with self.__push_peers_lock:
+            logging.info("[PEER] Connected push peers: {}. {}/{}".format(
+                await self.get_peer_addresses(self.__push_peers),
+                len(self.__push_peers), self.__max_push_peers))
+        async with self.__pull_peers_lock:
+            logging.info("[PEER] Connected pull peers: {}. {}/{}".format(
+                await self.get_peer_addresses(self.__pull_peers),
+                len(self.__pull_peers), self.__max_pull_peers))
         async with self.__unverified_peers_lock:
-            logging.info("[PEER] Connected unverified peers: "
-                         f"{self.get_peer_addresses(self.__unverified_peers)} "
-                         f"({len(self.__unverified_peers)})")
+            logging.info("[PEER] Connected unverified peers: {}. {}/{}".format(
+                await self.get_peer_addresses(self.__unverified_peers),
+                len(self.__unverified_peers), self.config.cache_size
+            ))
 
     def print_api_debug(self):
         """Prints all Gossip class variables for API functionality"""
@@ -421,8 +464,7 @@ class Gossip:
         await self.__add_peer_announce_id(packet_id)
 
         # Choose degree peers randomly
-
-        peers = self.__pull_peers + list(self.__push_peers)
+        peers = self.__get_verified_pull_push_peers()
         if len(peers) < self.config.degree:
             peer_sample = peers
         else:
@@ -430,8 +472,7 @@ class Gossip:
 
         # send PEER_ANNOUNCE on each Peer_connection
         for peer in peer_sample:
-            if peer.is_fully_validated():
-                await peer.send_peer_announce(packet_id, ttl, dtype, data)
+            await peer.send_peer_announce(packet_id, ttl, dtype, data)
         return
 
     async def handle_peer_announce(self, packet_id, ttl, dtype, data, peer):
@@ -462,8 +503,8 @@ class Gossip:
         if dtype in self.__datasubs.keys():
             # save message and subs as tuple: (ttl, dtype, data, [datasubs])
             # and add to dictionary
-            self.__announces_to_verify[packet_id] = \
-                (ttl, dtype, data, peer, self.__datasubs.get(dtype).copy())
+            self.__announces_to_verify[packet_id] = (
+                ttl, dtype, data, peer, self.__datasubs.get(dtype).copy())
             for sub in self.__datasubs.get(dtype):
                 await sub.send_gossip_notification(packet_id, dtype, data)
 
@@ -501,8 +542,7 @@ class Gossip:
         # check if we are the last to verify
         # if yes send PEER_ANNOUNCE to peer sample
         if len(self.__announces_to_verify[msg_id][4]) == 0:
-            (ttl, dtype, data, peer, _) = \
-                self.__announces_to_verify.pop(msg_id, None)
+            (ttl, dtype, data, peer, _) = self.__announces_to_verify.pop(msg_id, None)
             peer_sample = await self.__get_peer_sample()
             # remove original sender from sample
             if peer in peer_sample:
@@ -519,7 +559,21 @@ class Gossip:
 
         Returns:
             - List of Peer_connections"""
-        peers = self.__pull_peers + list(self.__push_peers)
+        peers = self.__get_verified_pull_push_peers()
         if len(peers) < self.config.degree:
             return peers
         return sample(peers, self.config.degree)
+
+    async def __get_verified_pull_push_peers(self):
+        """Returns a list containing all verified pull and push peers. Acquires
+        pull_peers_lock and push_peers_lock"""
+        peers = []
+        # Only take validated pull peers
+        async with self.__pull_peers_lock:
+            for peer in self.__pull_peers:
+                if peer.is_fully_validated():
+                    peers.append(peer)
+        # push peers are assumed to be always verified (see unverified peers)
+        async with self.__push_peers_lock:
+            peers += list(self.__push_peers)
+        return peers

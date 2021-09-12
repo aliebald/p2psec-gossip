@@ -298,7 +298,7 @@ class Peer_connection:
         # Use target_address to filter the address of the target peer
         target_address = self.get_peer_p2p_listening_address()
         addresses = list(filter(lambda ip: ip != target_address,
-                         self.gossip.get_peer_addresses()))
+                         await self.gossip.get_peer_addresses()))
 
         # Abort if we do not know any other peers
         if len(addresses) == 0:
