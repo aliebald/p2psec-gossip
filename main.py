@@ -37,7 +37,8 @@ def parse_arguments():
         "written into the file at the end of the path. If the given file does "
         "not yet exist, it will be created. Otherwise, new logs will be "
         "appended to the current content. Note that the folder structure "
-        "given in the path must already exist."
+        "given in the path must already exist. If this option is not given, "
+        "logging will happen in the console"
     )
 
     parser = argparse.ArgumentParser(description=description)
