@@ -41,7 +41,10 @@ async def test_handshake():
         print("[test_handshake] ERROR - PEER CHALLENGE message " +
               "type is not correct")
     challenge = pp.parse_peer_challenge(buf)
-    # TODO check for None
+    if challenge is None:
+        print("[test_handshake] ERROR - PEER CHALLENGE message "
+              "type is not correct")
+        return
     nonce = util.produce_pow_peer_challenge(challenge)
     # Send PEER VERIFICATION
     print("[test_handshake] Sending PEER VERIFICATION after calculating nonce")

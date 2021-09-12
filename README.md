@@ -1,5 +1,5 @@
 # Gossip
-Note: All information within this README is also documented in the [documentation](docs/endterm_report.pdf). This README provides a quick overview over the most important options for running this module.
+Note: All information within this README is also documented in the [documentation](docs/Endterm_Report.pdf). This README provides a quick overview over the most important options for running this module.
 
 
 ## Setup & Dependencies
@@ -36,9 +36,11 @@ The following settings can be adjusted in the used config (default = `config.ini
 
 - `search_cooldown`: In this interval it is checked whether we have min connections peers. If not start peer discovery.
 	- Constraints: must be greater than 0.
+	- If this variable is not given the default value of 1 minute is used.
 
 - `challenge_cooldown`: Every challenge\_cooldown seconds the verification process is initiated for all unverified peers. Since this is a security feature, it is not recommended to be experimented with. 
 	- Constraints: must be greater than 0.
+	- If this variable is not given the default value of 5 minutes is used.
 
 - `p2p_address`: Listening ip and port number for other Gossip peers. Must be a valid and unused port.
 	- Constraints: must be a valid IPv4 address in the format \<ip>:\<port>
@@ -47,7 +49,8 @@ The following settings can be adjusted in the used config (default = `config.ini
 	- Constraints: must be a valid IPv4 address in the format \<ip>:\<port>
 
 - `known_peers`: comma separated list containing ip addresses of potential Peers
-	- Constraints: must have the format: \<ip>:\<port>,\<ip>:\<port>,...
+	- Constraints: must have the format: \<ip>:\<port>,\<ip>:\<port>,... 
+	- Can also be left out / not required
 
 - `bootstrapper`: One trustworthy bootstrapping node, used as a fallback in case no known\_peers are given or none can be reached.
 	- Constraints: must be a valid IPv4 address in the format \<ip>:\<port>

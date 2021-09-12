@@ -9,9 +9,9 @@ from math import (floor, ceil)
 from collections import deque
 
 from modules.util import (Setqueue, parse_address)
-from modules.api.api_connection import Api_connection
+from modules.api_connection import Api_connection
 from modules.connection_handler import connection_handler
-from modules.peers.peer_connection import (
+from modules.peer_connection import (
     Peer_connection, peer_connection_factory)
 
 
@@ -130,14 +130,29 @@ class Gossip:
 
         # start API connection handler
         (api_host, api_port) = parse_address(self.config.api_address)
-        asyncio.create_task(connection_handler(
-            api_host, int(api_port), self.__on_api_connection))
+        try:
+            asyncio.create_task(connection_handler(
+                api_host, int(api_port), self.__on_api_connection))
+        except OSError:
+            logging.critical(
+                "Error while trying to start api connection handler on "
+                f"{self.config.api_address}. Please make sure the used ip "
+                "address and port are valid and available")
+            exit()
         logging.debug("[API] started API connection handler on {}:{}\r\n"
                       .format(api_host, api_port))
 
         # start peer connection handler
         (host, port) = parse_address(self.config.p2p_address)
-        await connection_handler(host, int(port), self.__on_peer_connection)
+        try:
+            await connection_handler(host, int(port),
+                                     self.__on_peer_connection)
+        except OSError:
+            logging.critical(
+                "Error while trying to start peer connection handler on "
+                f"{self.config.p2p_address}. Please make sure the used ip "
+                "address and port are valid and available")
+            exit()
 
     async def __on_api_connection(self, reader, writer):
         new_api = Api_connection(reader, writer, self)
