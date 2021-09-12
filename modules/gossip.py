@@ -59,6 +59,7 @@ class Gossip:
         self.__pull_peers = []
         # unverified push peers
         self.__unverified_peers = deque(maxlen=self.config.cache_size)
+        self.__unverified_peers_lock = asyncio.Lock()
         self.apis = []
 
         #                          Key - Value
@@ -129,24 +130,32 @@ class Gossip:
         logging.info(f"[PEER] New unverified peer connected: {new_peer}")
 
         # Dosconnect the oldest unverified peer if we reached cache_size
-        if len(self.__unverified_peers) >= self.config.cache_size:
-            oldest_peer = self.__unverified_peers.pop()
-            logging.debug(
-                f"Disconnecting {oldest_peer}, because capacity for unverified"
-                f" peers (cache_size: {self.config.cache_size}) is reached")
-            await self.close_peer(oldest_peer)
+        async with self.__unverified_peers_lock:
+            if len(self.__unverified_peers) >= self.config.cache_size:
+                oldest_peer = self.__unverified_peers.pop()
+                logging.debug(
+                    f"Disconnecting {oldest_peer}, because capacity for "
+                    f"unverified peers (cache_size: {self.config.cache_size}) "
+                    "is reached")
+                await self.close_peer(oldest_peer, True)
+            self.__unverified_peers.appendleft(new_peer)
 
-        self.__unverified_peers.appendleft(new_peer)
         asyncio.create_task(new_peer.run())
 
     async def validate_peer(self, peer):
         """Removes the given peer from the unverified_peers list and adds it to
         push_peers"""
-        if peer not in self.__unverified_peers:
-            logging.warning("[PEER] Peer not found in unverified_peers")
-            self.__log_connected_peers()
+        in_unverified = False
+        async with self.__unverified_peers_lock:
+            in_unverified = peer in self.__unverified_peers
+            if in_unverified:
+                self.__unverified_peers.remove(peer)
+
+        # If the peer was removed from unverified, log connected, else warning
+        if in_unverified:
+            await self.__log_connected_peers()
         else:
-            self.__unverified_peers.remove(peer)
+            logging.warning("[PEER] Peer not found in unverified_peers")
 
         # Dosconnect the oldest push peer if we reached max_push_peers
         if len(self.__push_peers) >= self.__max_push_peers:
@@ -173,8 +182,9 @@ class Gossip:
 
         logging.info(f"[PEER] Offer contained: {peer_addresses}")
         # remove already connected peers
-        all_peers = list(self.__push_peers) + \
-            self.__pull_peers + list(self.__unverified_peers)
+        async with self.__unverified_peers_lock:
+            all_peers = list(self.__push_peers) + \
+                self.__pull_peers + list(self.__unverified_peers)
         connected = self.get_peer_addresses(all_peers)
         candidates = list(filter(lambda x: x not in connected, peer_addresses))
 
@@ -223,29 +233,53 @@ class Gossip:
             addresses.append(peer.get_peer_p2p_listening_address())
         return list(filter(lambda x: x is not None, addresses))
 
-    async def close_peer(self, peer):
+    async def close_peer(self, peer, has_unverified_lock=False):
         """Removes a Peer_connection from gossip and calls close on the
         Peer_connection.
+        Tries to acquire the __unverified_peers_lock if has_unverified_lock is
+        false or not given.
 
         Arguments:
         - peer (Peer_connection) -- Peer_connection instance that should be
           closed
+        - has_unverified_lock (bool) -- (Default False) whether
+          unverified_peers_lock is already acquired
         """
+        async def __close_and_print(peer):
+            await peer.close()
+            await self.__log_connected_peers()
+
         if peer in self.__push_peers:
             self.__push_peers.remove(peer)
-        elif peer in self.__pull_peers:
-            self.__pull_peers.remove(peer)
-        elif peer in self.__unverified_peers:
-            self.__unverified_peers.remove(peer)
-        else:
-            # It can happen that the peer is not in any of the above lists, e.g.
-            # when a connection is closed directly after establishing it in the
-            # Peer_connection factory
-            logging.debug("[PEER] The Peer that should be closed was not found"
-                          " in push_peers, pull_peers or unverified_peers")
+            await __close_and_print(peer)
+            return
 
-        await peer.close()
-        self.__log_connected_peers()
+        if peer in self.__pull_peers:
+            self.__pull_peers.remove(peer)
+            await __close_and_print(peer)
+            return
+
+        # already has lock, check unverified_peers
+        if has_unverified_lock and peer in self.__unverified_peers:
+            self.__unverified_peers.remove(peer)
+            await __close_and_print(peer)
+            return
+
+        # acquire lock and check unverified_peers
+        if not has_unverified_lock:
+            async with self.__unverified_peers_lock:
+                if peer in self.__unverified_peers:
+                    self.__unverified_peers.remove(peer)
+                    await peer.close()
+            await self.__log_connected_peers()
+            return
+
+        # It can happen that the peer is not in any of the above lists, e.g.
+        # when a connection is closed directly after establishing it in the
+        # Peer_connection factory
+        logging.debug("[PEER] The Peer that should be closed was not found"
+                      " in push_peers, pull_peers or unverified_peers")
+        await __close_and_print(peer)
 
     async def __run_peer_control(self):
         """Searches for new pull peers by sending a peer discovery to all known
@@ -277,7 +311,7 @@ class Gossip:
                 ):
                 logging.info("- - - - - - - - - - - - - -")
                 logging.info("[PEER] Looking for new Peers")
-                self.__log_connected_peers()
+                await self.__log_connected_peers()
                 # Send PeerDiscovery
                 for peer in list(self.__push_peers) + self.__pull_peers:
                     if peer.is_fully_validated():
@@ -289,28 +323,34 @@ class Gossip:
         """Sends out peer challenge to all unverified peers in a regular
         intervall"""
         while True:
-            if len(self.__unverified_peers) > 0:
-                await self.__clean_unverified_peers()
-                for peer in self.__unverified_peers:
-                    await peer.send_peer_challenge()
+            async with self.__unverified_peers_lock:
+                if len(self.__unverified_peers) > 0:
+                    await self.__clean_unverified_peers()
+                    for peer in self.__unverified_peers:
+                        await peer.send_peer_challenge()
 
             await asyncio.sleep(self.config.challenge_cooldown)
 
     async def __clean_unverified_peers(self):
         """Goes through unverified_peers and closes all connections where a
-        PEER CHALLENGE was send and the timeout expired"""
+        PEER CHALLENGE was send and the timeout expired.
+        The __unverified_peers_lock must be acquired before calling this.
+        """
         for peer in self.__unverified_peers:
             peer_challenge = peer.get_peer_challenge()
             current_time = time()
             if peer_challenge != None and peer_challenge[1] < current_time:
                 # Challenge exists but is timeouted, close connection
-                logging.debug(f"[PEER] PEER CHALLENGE Timeout for {peer} "
-                              f"expired {current_time-peer_challenge[1]}s ago")
-                await self.close_peer(peer)
+                logging.debug(
+                    f"[PEER] PEER CHALLENGE timeout for {peer} expired "
+                    f"{current_time-peer_challenge[1]}s ago")
+                await self.close_peer(peer, True)
 
-    def print_gossip_debug(self):
-        """Prints all Gossip class variables"""
-        self.__log_connected_peers()
+    async def print_gossip_debug(self):
+        """Prints all Gossip class variables.
+        Acquires unverified_peers_lock
+        """
+        await self.__log_connected_peers()
         logging.debug(f"[API] connected apis {self.apis}")
         logging.debug(f"[API] current subscribers {self.__datasubs}")
         logging.debug("[API] current routing ids: " +
@@ -318,17 +358,20 @@ class Gossip:
         logging.debug("[API] current announces to verify: " +
                       f"{self.__announces_to_verify}\r\n")
 
-    def __log_connected_peers(self):
-        """Logs push and pull peers including capacities"""
+    async def __log_connected_peers(self):
+        """Logs push and pull peers including capacities.
+        Acquires unverified_peers_lock
+        """
         logging.info("[PEER] Connected push peers: {}. {}/{}".format(
             self.get_peer_addresses(self.__push_peers),
             len(self.__push_peers), self.__max_push_peers))
         logging.info("[PEER] Connected pull peers: {}. {}/{}".format(
             self.get_peer_addresses(self.__pull_peers),
             len(self.__pull_peers), self.__max_pull_peers))
-        logging.info("[PEER] Connected unverified peers: "
-                     f"{self.get_peer_addresses(self.__unverified_peers)} "
-                     f"({len(self.__unverified_peers)})")
+        async with self.__unverified_peers_lock:
+            logging.info("[PEER] Connected unverified peers: "
+                         f"{self.get_peer_addresses(self.__unverified_peers)} "
+                         f"({len(self.__unverified_peers)})")
 
     def print_api_debug(self):
         """Prints all Gossip class variables for API functionality"""
