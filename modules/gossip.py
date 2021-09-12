@@ -79,8 +79,8 @@ class Gossip:
         self.__unverified_peers = deque(maxlen=self.config.cache_size)
         self.__unverified_peers_lock = asyncio.Lock()
 
-        self.apis = []
-        self.apis_lock = asyncio.Lock()
+        self.__apis = []
+        self.__apis_lock = asyncio.Lock()
 
         #                          Key - Value
         # Subscriber list, Format: Int - List of Api_connections
@@ -142,8 +142,8 @@ class Gossip:
     async def __on_api_connection(self, reader, writer):
         new_api = Api_connection(reader, writer, self)
         logging.info(f"[API] New API connected: {new_api.get_api_address()}")
-        async with self.apis_lock:
-            self.apis.append(new_api)
+        async with self.__apis_lock:
+            self.__apis.append(new_api)
         asyncio.create_task(new_api.run())
 
     async def __on_peer_connection(self, reader, writer):
@@ -384,17 +384,21 @@ class Gossip:
 
             await asyncio.sleep(self.config.challenge_cooldown)
 
-    async def print_gossip_debug(self):
-        """Prints all Gossip class variables.
+    async def log_gossip_debug(self):
+        """Logs all Gossip class variables.
         Acquires unverified_peers_lock
         """
         await self.__log_connected_peers()
-        logging.debug(f"[API] connected apis {self.apis}")
-        logging.debug(f"[API] current subscribers {self.__datasubs}")
-        logging.debug("[API] current routing ids: " +
-                      f"{list(self.__peer_announce_ids.queue)}")
-        logging.debug("[API] current announces to verify: " +
-                      f"{self.__announces_to_verify}\r\n")
+        async with self.__apis_lock:
+            logging.debug(f"[API] connected apis {self.__apis}")
+        async with self.__datasubs_lock:
+            logging.debug(f"[API] current subscribers {self.__datasubs}")
+        async with self.__peer_announce_ids_lock:
+            logging.debug("[API] current routing ids: "
+                          f"{list(self.__peer_announce_ids.queue)}")
+        async with self.__announces_to_verify_lock:
+            logging.debug("[API] current announces to verify: "
+                          f"{self.__announces_to_verify}\r\n")
 
     async def __log_connected_peers(self):
         """Logs push and pull peers including capacities.
@@ -413,15 +417,6 @@ class Gossip:
                 await self.get_peer_addresses(self.__unverified_peers),
                 len(self.__unverified_peers), self.config.cache_size
             ))
-
-    def print_api_debug(self):
-        """Prints all Gossip class variables for API functionality"""
-        logging.debug(f"[API] connected apis {self.apis}")
-        logging.debug(f"[API] current subscribers {self.__datasubs}")
-        logging.debug("[API] current routing ids: " +
-                      f"{list(self.__peer_announce_ids.queue)}")
-        logging.debug("[API] current announces to verify: " +
-                      f"{self.__announces_to_verify}\r\n")
 
     async def add_subscriber(self, datatype, api):
         """Adds an Api_connection to the Subscriber dict (datasubs)
@@ -451,9 +446,9 @@ class Gossip:
             - datasubs
            and closes the socket"""
         await self.__remove_subscriber(api)
-        async with self.apis_lock:
+        async with self.__apis_lock:
             if api in self.apis:
-                self.apis.remove(api)
+                self.__apis.remove(api)
         # Close the socket
         await api.close()
         return
@@ -532,7 +527,7 @@ class Gossip:
                     await sub.send_gossip_notification(packet_id, dtype, data)
 
         # no subscriber for this datatype
-        # Spezification 4.2.2.: Do not propagate further.
+        # Specification 4.2.2.: Do not propagate further.
         return
 
     async def handle_gossip_validation(self, msg_id, valid, api):

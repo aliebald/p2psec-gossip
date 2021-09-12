@@ -136,18 +136,6 @@ class Peer_connection:
         except Exception:
             return
 
-    def get_validated_them(self):
-        """Getter for validated_them.
-        We use getter functions because validated_them should not be mutable
-        from outside of Peer_connection"""
-        return self.__validated_them
-
-    def get_validated_us(self):
-        """Getter for validated_us.
-        We use getter functions because validated_us should not be mutable from
-        outside of Peer_connection"""
-        return self.__validated_us
-
     def get_peer_challenge(self):
         """Returns the peer challenge send to the connected peer together with
         its timeout, or None if none was send"""
