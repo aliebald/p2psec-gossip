@@ -296,7 +296,6 @@ class Gossip:
             if has_lock and peer in list:
                 list.remove(peer)
                 await peer.close()
-                await self.__log_connected_peers()
                 return True
             # acquire lock and check unverified_peers
             if not has_lock:
@@ -304,24 +303,26 @@ class Gossip:
                     if peer in list:
                         list.remove(peer)
                         await peer.close()
-                await self.__log_connected_peers()
-                return True
+                        return True
             return False
 
         # Check if the peer is in unverified_peers
-        if __check_list(peer, self.__unverified_peers,
-                        self.__unverified_peers_lock,
-                        has_unverified_lock):
+        if await __check_list(peer, self.__unverified_peers,
+                              self.__unverified_peers_lock,
+                              has_unverified_lock):
+            await self.__log_connected_peers()
             return
 
         # Check if the peer is in pull_peers
-        if __check_list(peer, self.__pull_peers,
-                        self.__pull_peers_lock, has_pull_peers_lock):
+        if await __check_list(peer, self.__pull_peers,
+                              self.__pull_peers_lock, has_pull_peers_lock):
+            await self.__log_connected_peers()
             return
 
         # Check if the peer is in push_peers
-        if __check_list(peer, self.__push_peers,
-                        self.__push_peers_lock, has_push_peers_lock):
+        if await __check_list(peer, self.__push_peers,
+                              self.__push_peers_lock, has_push_peers_lock):
+            await self.__log_connected_peers()
             return
 
         # It can happen that the peer is not in any of the above lists, e.g.

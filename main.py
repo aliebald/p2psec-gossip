@@ -37,7 +37,8 @@ def parse_arguments():
         "written into the file at the end of the path. If the given file does "
         "not yet exist, it will be created. Otherwise, new logs will be "
         "appended to the current content. Note that the folder structure "
-        "given in the path must already exist."
+        "given in the path must already exist. If this option is not given, "
+        "logging will happen in the console"
     )
 
     parser = argparse.ArgumentParser(description=description)
@@ -75,17 +76,31 @@ def setup_logger(level, logfile):
 async def main():
     # This script requires Python version 3.9 or newer to run
     if not sys.version_info >= (3, 9):
-        raise EnvironmentError("Python version 3.9 or newer is required. "
-                               f"(detected: {sys.version})")
+        print("Python version 3.9 or newer is required. "
+              f"(detected: {sys.version})")
+        return
     os.chdir(os.path.dirname(os.path.abspath(sys.argv[0])))
 
     (path, log_level, logfile) = parse_arguments()
 
-    # Setup Logger. Change logging level here!
-    setup_logger(log_level, logfile)
+    try:
+        # Setup Logger. Change logging level here!
+        setup_logger(log_level, logfile)
+    except FileNotFoundError:
+        print("Invalid argument: the path given with -l or --logfile is "
+              "invalid. Please make sure it exists.")
+        return
 
     logging.info(f"Starting Gossip. Config path: \"{path}\"")
-    config = Config(path)
+    try:
+        config = Config(path)
+    except ValueError as e:
+        logging.critical(f"[Config error] {e}")
+        return
+    except IOError as e:
+        logging.critical(f"[Config error] {e}")
+        return
+
     logging.info(config)
     await Gossip(config).run()
 
