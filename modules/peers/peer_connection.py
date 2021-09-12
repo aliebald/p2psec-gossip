@@ -7,8 +7,8 @@ import asyncio
 import time
 from random import getrandbits
 
-from modules.config import parse_ip
 from modules.util import (
+    parse_address,
     produce_pow_peer_challenge,
     valid_nonce_peer_challenge
 )
@@ -575,7 +575,7 @@ async def __connect_peer(address, gossip, p2p_listening_port):
         None if failed to open the connection.
         Otherwise a new Peer_connection instance.
     """
-    (ip, port) = parse_ip(address)
+    (ip, port) = parse_address(address)
     logging.info("[PEER] Connecting to ip: {}, port: {}".format(ip, port))
     try:
         reader, writer = await asyncio.open_connection(ip, port)

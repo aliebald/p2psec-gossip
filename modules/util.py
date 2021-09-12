@@ -1,11 +1,17 @@
 """This module provides utility functions that don't fit elsewhere.
 Contains Setqueue class / datastructure and proof of work (pow) functions for
-peer challenge"""
+peer challenge.
+
+The parse_address function provided in this module can be used to
+parse IPv4 or IPv6 addresses with port into a tuple (See parse_address).
+To validate ip addresses, is_valid_address can be used
+"""
 
 import queue
 import logging
 import hashlib
 import time
+import ipaddress
 
 
 # FIFO Queue which will not add duplicates
@@ -31,6 +37,40 @@ class Setqueue(queue.Queue):
     def contains(self, item):
         with self.mutex:
             return item in self.queue
+
+
+def parse_address(address):
+    """Parses an IPv4 or IPv6 followed by a port (format: <ip>:<port>, can
+    contain '[' or ']').
+    Returns a tuple with (address -- str, port -- int).
+
+    Throws an ValueError if the given address is invalid.
+    """
+    address = address.replace("[", "").replace("]", "")
+    split_at = address.rindex(':')
+    return (address[:split_at], int(address[split_at+1:]))
+
+
+def is_valid_address(address):
+    """Checks if the given ip is in a valid format for the config.
+    Format: <ip_address>:<port> (can contain '[' or ']').
+    """
+    def __is_valid_port(port):
+        if len(str(port)) == 0:
+            return False
+        try:
+            int(port)
+        except ValueError:
+            return False
+        return int(port) <= 2**16-1
+
+    try:
+        ip, port = parse_address(address)
+        ipaddress.ip_address(ip)
+    except ValueError:
+        return False
+
+    return __is_valid_port(port)
 
 
 def valid_nonce_peer_challenge(challenge, nonce):

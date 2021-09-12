@@ -3,25 +3,12 @@ This module provides the Config class, which s abstracts the parsing required
 to read config files and provides easy access to the variables inside the given
 configfile.
 
-Additionally, the parse_ip function provided in this module can be used to parse
-IPv4 or IPv6 addresses with port into a tuple (See parse_ip)
-
 In this file there are also a few checks and a format for the config class. The
 class itself can be found bellow those.
 """
 
 from configparser import ConfigParser
-import ipaddress
-
-
-def parse_ip(address):
-    """Parses an IPv4 or IPv6 followed by a port (format: <ip>:<port>).
-    Returns a tuple with (address -- str, port -- int).
-
-    Throws an ValueError if the given address is invalid.
-    """
-    split_at = address.rindex(':')
-    return (address[:split_at], int(address[split_at+1:]))
+from modules.util import is_valid_address
 
 
 def __check_cache_size(config):
@@ -86,21 +73,21 @@ def __check_challenge_cooldown(config):
 
 def __check_bootstrapper(config):
     """Checks if the bootstrapper is in a valid format"""
-    if not __is_valid_ip(config.bootstrapper):
+    if not is_valid_address(config.bootstrapper):
         raise KeyError(f"bootstrapper ({config.bootstrapper}) is not in a "
                        "valid format. The format must be: <ip_address>:<port>")
 
 
 def __check_p2p_address(config):
     """Checks if the p2p_address is in a valid format"""
-    if not __is_valid_ip(config.p2p_address):
+    if not is_valid_address(config.p2p_address):
         raise KeyError(f"p2p_address ({config.p2p_address}) is not in a "
                        "valid format. The format must be: <ip_address>:<port>")
 
 
 def __check_api_address(config):
     """Checks if the api_address is in a valid format"""
-    if not __is_valid_ip(config.api_address):
+    if not is_valid_address(config.api_address):
         raise KeyError(f"api_address ({config.api_address}) is not in a "
                        "valid format. The format must be: <ip_address>:<port>")
 
@@ -117,30 +104,9 @@ def __check_known_peers(config):
                        f"known_peers: {config.known_peers}")
 
     for peer in peers:
-        if not __is_valid_ip(peer):
+        if not is_valid_address(peer):
             raise KeyError(f"known_peers address ({peer}) is not in a valid "
                            "format. The format must be: <ip_address>:<port>")
-
-
-def __is_valid_ip(ip):
-    """Checks if the given ip is in a valid format for the config.
-    Format: <ip_address>:<port>"""
-    def __is_valid_port(port):
-        if len(str(port)) == 0:
-            return False
-        try:
-            int(port)
-        except ValueError:
-            return False
-        return int(port) <= 2**16-1
-
-    try:
-        ip, port = parse_ip(ip)
-        ipaddress.ip_address(ip)
-    except ValueError:
-        return False
-
-    return __is_valid_port(port)
 
 
 # config blueprint.

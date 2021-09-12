@@ -5,13 +5,12 @@ TODO: Description of gossip functionality?
 
 import asyncio
 import logging
-from modules.config import parse_ip
 from random import (randint, sample, shuffle)
 from math import (floor, ceil)
 from time import time
 from collections import deque
 
-from modules.util import Setqueue
+from modules.util import (Setqueue, parse_address)
 from modules.api.api_connection import Api_connection
 from modules.connection_handler import connection_handler
 from modules.peers.peer_connection import (
@@ -80,7 +79,7 @@ class Gossip:
         peers and waits for new incoming connections.
         """
         # connect to peers in config
-        (_, p2p_listening_port) = parse_ip(self.config.p2p_address)
+        (_, p2p_listening_port) = parse_address(self.config.p2p_address)
         num_known_peers = len(self.config.known_peers)
         if num_known_peers > 0:
             logging.debug(
@@ -96,7 +95,7 @@ class Gossip:
                 [self.config.bootstrapper], self, int(p2p_listening_port))
 
         # start API connection handler
-        (api_host, api_port) = parse_ip(self.config.api_address)
+        (api_host, api_port) = parse_address(self.config.api_address)
         asyncio.create_task(connection_handler(
             api_host, int(api_port), self.__on_api_connection))
         logging.debug("[API] started API connection handler on {}:{}\r\n"
@@ -110,7 +109,7 @@ class Gossip:
             asyncio.create_task(peer.run())
 
         # start peer connection handler
-        (host, port) = parse_ip(self.config.p2p_address)
+        (host, port) = parse_address(self.config.p2p_address)
         await connection_handler(host, int(port), self.__on_peer_connection)
 
     def __on_api_connection(self, reader, writer):
@@ -184,7 +183,7 @@ class Gossip:
 
         logging.debug(f"[PEER] Candidates: {candidates}")
         shuffle(candidates)
-        (_, p2p_listening_port) = parse_ip(self.config.p2p_address)
+        (_, p2p_listening_port) = parse_address(self.config.p2p_address)
         # missing_peers to reach max_pull_peers
         missing_peers = self.__max_pull_peers - len(self.__pull_peers)
 
