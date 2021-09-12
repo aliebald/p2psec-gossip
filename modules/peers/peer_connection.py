@@ -140,14 +140,12 @@ class Peer_connection:
         """Getter for validated_them.
         We use getter functions because validated_them should not be mutable
         from outside of Peer_connection"""
-        # TODO check if we need this or if is_fully_validated is enough
         return self.__validated_them
 
     def get_validated_us(self):
         """Getter for validated_us.
         We use getter functions because validated_us should not be mutable from
         outside of Peer_connection"""
-        # TODO check if we need this or if is_fully_validated is enough
         return self.__validated_us
 
     def get_peer_challenge(self):
@@ -292,7 +290,6 @@ class Peer_connection:
           project documentation
         """
         message = pack_peer_verification(nonce)
-        # TODO handle message = None
         logging.info(f"[PEER] Sending PEER VERIFICATION to {self}")
         await self.__send(message)
 
@@ -367,7 +364,7 @@ class Peer_connection:
             await self.__handle_peer_verification(buf)
         elif type == PEER_VALIDATION:
             logging.info(f"[PEER] Received PEER_VALIDATION from {self}")
-            self.__handle_peer_validation(buf)
+            await self.__handle_peer_validation(buf)
         else:
             logging.info(f"[PEER] Received message with unknown type {type} "
                          f"from {self}")
@@ -404,6 +401,9 @@ class Peer_connection:
         """
         msg = parse_peer_announce(buf)
         if msg == None:
+            logging.info(f"[PEER] Closing {self} because an malformed PEER "
+                         "ANNOUNCE message was received")
+            await self.gossip.close_peer(self)
             return
 
         (id, ttl, data_type, data) = msg
@@ -436,6 +436,9 @@ class Peer_connection:
         """
         data = parse_peer_offer(buf)
         if data == None:
+            logging.info(f"[PEER] Closing {self} because an malformed PEER "
+                         "OFFER message was received")
+            await self.gossip.close_peer(self)
             return
 
         # Close the connection if the offer contained no data
@@ -488,6 +491,9 @@ class Peer_connection:
         """
         challenge = parse_peer_challenge(buf)
         if challenge == None:
+            logging.info(f"[PEER] Closing {self} because an malformed PEER "
+                         "CHALLENGE message was received")
+            await self.gossip.close_peer(self)
             return
         # solve the challenge
         nonce = produce_pow_peer_challenge(challenge)
@@ -498,6 +504,9 @@ class Peer_connection:
     async def __handle_peer_verification(self, buf):
         nonce = parse_peer_verification(buf)
         if nonce == None:
+            logging.info(f"[PEER] Closing {self} because an malformed PEER "
+                         "VERIFICATION message was received")
+            await self.gossip.close_peer(self)
             return
 
         # Check if we send a peer challenge, otherwise we do not except an
@@ -512,21 +521,19 @@ class Peer_connection:
         if timeout < time.time():
             logging.info("[PEER] Received PEER VERIFICATION after timeout for "
                          "challenge expired")
-            # await self.__send_peer_validation(False)  # TODO do we send this?
             await self.gossip.close_peer(self)
             return
 
         # Check if nonce is not valid
         if not valid_nonce_peer_challenge(challenge, nonce):
             logging.info("[PEER] PEER VERIFICATION contained invalid nonce")
-            # await self.__send_peer_validation(False)  # TODO do we send this?
             await self.gossip.close_peer(self)
             return
 
         # received valid verification, this peer is now trustworthy
         await self.__send_peer_validation(True)
 
-    def __handle_peer_validation(self, buf):
+    async def __handle_peer_validation(self, buf):
         """Handles a peer validation message.
 
         Arguments:
@@ -535,14 +542,20 @@ class Peer_connection:
         """
         valid = parse_peer_validation(buf)
         if valid == None:
+            logging.info(f"[PEER] Closing {self} because an malformed PEER "
+                         "VALIDATION message was received")
+            await self.gossip.close_peer(self)
             return
 
         assert type(valid) is bool
         logging.info(f"[PEER] Received validation with valid = {valid}")
         self.__validated_us = valid
-        # TODO what if we where verified but received and invalid validation
+        if not valid:
+            logging.info(f"[PEER] Closing {self} because PEER VALIDATION "
+                         "contained invalid")
+            await self.gossip.close_peer(self)
 
-    def __handle_peer_info(self, buf):
+    async def __handle_peer_info(self, buf):
         """Handles a peer info message. Saves the received p2p_listening_port.
 
         Arguments:
@@ -551,6 +564,9 @@ class Peer_connection:
         """
         port = parse_peer_info(buf)
         if port == None:
+            logging.info(f"[PEER] Closing {self} because an malformed PEER "
+                         "INFO message was received")
+            await self.gossip.close_peer(self)
             return
 
         # check if we already know the p2p_listening_port of the other peer
