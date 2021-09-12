@@ -12,6 +12,7 @@ import logging
 import hashlib
 import time
 import ipaddress
+import socket
 
 
 # FIFO Queue which will not add duplicates
@@ -71,6 +72,31 @@ def is_valid_address(address):
         return False
 
     return __is_valid_port(port)
+
+
+def resolve_address(address):
+    """Checks if the given address is a domain and resolves it. Returns input
+    if input is a valid IPv4 or IPv6
+
+    Arguments:
+    - Address (str) -- IPv4, IPv6 or Domain
+
+    Returns: IPv4 (str) or the input address if the given address is invalid
+      (not a full check)
+    """
+    try:
+        ip, port = parse_address(address)
+    except ValueError:
+        return address
+
+    try:
+        ipaddress.ip_address(ip)
+    except ValueError:
+        print("Resolved address to")
+        print(f"{socket.gethostbyname(ip)}:{port}")
+        return f"{socket.gethostbyname(ip)}:{port}"
+
+    return address
 
 
 def valid_nonce_peer_challenge(challenge, nonce):

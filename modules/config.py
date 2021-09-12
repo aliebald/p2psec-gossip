@@ -8,7 +8,7 @@ class itself can be found bellow those.
 """
 
 from configparser import ConfigParser
-from modules.util import is_valid_address
+from modules.util import is_valid_address, resolve_address
 
 
 def __check_cache_size(config):
@@ -101,13 +101,12 @@ def __check_known_peers(config):
     if len(config.known_peers) == 0:
         return
 
-    peers = config.known_peers.replace(" ", "").split(",")
     # check for duplicates:
-    if len(peers) != len(set(peers)):
+    if len(config.known_peers) != len(set(config.known_peers)):
         raise ValueError("known_peers must not contain duplicates."
                          f"known_peers: {config.known_peers}")
 
-    for peer in peers:
+    for peer in config.known_peers:
         if not is_valid_address(peer):
             raise ValueError(f"known_peers address ({peer}) is not in a valid "
                              "format. The format must be: <ip_address>:<port>")
@@ -167,7 +166,7 @@ config_config = {
         },
         "known_peers": {
             "required": False,
-            "default": [],
+            "default": "",
             "checks": __check_known_peers
         },
     }
@@ -198,11 +197,17 @@ class Config:
             raise IOError(f"No config found at \"{path}\"")
 
         self.__parse_config(configparser)
-        self.__check_config()
 
-        # split known peers string into list, if a string was loaded
+        self.bootstrapper = resolve_address(self.bootstrapper)
+        self.p2p_address = resolve_address(self.p2p_address)
+        self.api_address = resolve_address(self.api_address)
+        peers = []
         if len(self.known_peers) > 0:
-            self.known_peers = self.known_peers.replace(" ", "").split(",")
+            for peer in self.known_peers.replace(" ", "").split(","):
+                peers.append(resolve_address(peer))
+        self.known_peers = peers
+
+        self.__check_config()
 
     def __str__(self):
         """Returns this config as a string"""
