@@ -87,8 +87,10 @@ class Api_connection:
         See also:
         - get_own_address()
         """
-        # TODO returns None on error
-        (host, port) = self.__writer.get_extra_info("peername")
+        tmp = self.__writer.get_extra_info("peername")
+        if tmp is None:
+            return ''
+        (host, port) = tmp
         address = "{}:{}".format(host, port)
         return address
 
