@@ -310,7 +310,8 @@ class Gossip:
 
         # Check if the peer is in unverified_peers
         if __check_list(peer, self.__unverified_peers,
-                        self.__unverified_peers_lock, has_unverified_lock):
+                        self.__unverified_peers_lock,
+                        has_unverified_lock):
             return
 
         # Check if the peer is in pull_peers
@@ -462,7 +463,7 @@ class Gossip:
         async with self.__peer_announce_ids_lock:
             if self.__peer_announce_ids.full():
                 self.__peer_announce_ids.get()
-        # duplicates wont be added as we use SetQueue
+            # duplicates wont be added as we use SetQueue
             self.__peer_announce_ids.put(packet_id)
 
     async def handle_gossip_announce(self, ttl, dtype, data):
@@ -480,7 +481,7 @@ class Gossip:
         await self.__add_peer_announce_id(packet_id)
 
         # Choose degree peers randomly
-        peers = self.__get_verified_pull_push_peers()
+        peers = await self.__get_verified_pull_push_peers()
         if len(peers) < self.config.degree:
             peer_sample = peers
         else:
@@ -547,26 +548,24 @@ class Gossip:
             # delete the whole entry
             async with self.__announces_to_verify_lock:
                 self.__announces_to_verify.pop(msg_id, None)
-            return
+                return
 
         async with self.__announces_to_verify_lock:
             if msg_id not in self.__announces_to_verify.keys():
                 logging.debug("[API] Message ID of GOSSIP VALIDATION is " +
                               "currently not being validated!")
-            return
-        async with self.__announces_to_verify_lock:
+                return
+
             if api not in self.__announces_to_verify[msg_id][4]:
                 logging.debug("[API] Sender {api} of GOSSIP VALIDATION is " +
                               "no validator!")
-            return
+                return
 
-        # remove this api from the validators of this message id
-        async with self.__announces_to_verify_lock:
+            # remove this api from the validators of this message id
             self.__announces_to_verify[msg_id][4].remove(api)
 
-        # check if we are the last to verify
-        # if yes send PEER_ANNOUNCE to peer sample
-        async with self.__announces_to_verify_lock:
+            # check if we are the last to verify
+            # if yes send PEER_ANNOUNCE to peer sample
             if len(self.__announces_to_verify[msg_id][4]) == 0:
                 (ttl, dtype, data, peer, _) = self.__announces_to_verify.\
                     pop(msg_id, None)
@@ -586,7 +585,7 @@ class Gossip:
 
         Returns:
             - List of Peer_connections"""
-        peers = self.__get_verified_pull_push_peers()
+        peers = await self.__get_verified_pull_push_peers()
         if len(peers) < self.config.degree:
             return peers
         return sample(peers, self.config.degree)
