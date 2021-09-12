@@ -82,8 +82,13 @@ async def main():
 
     (path, log_level, logfile) = parse_arguments()
 
-    # Setup Logger. Change logging level here!
-    setup_logger(log_level, logfile)
+    try:
+        # Setup Logger. Change logging level here!
+        setup_logger(log_level, logfile)
+    except FileNotFoundError:
+        print("Invalid argument: the path given with -l or --logfile is "
+              "invalid. Please make sure it exists.")
+        return
 
     logging.info(f"Starting Gossip. Config path: \"{path}\"")
     config = Config(path)
