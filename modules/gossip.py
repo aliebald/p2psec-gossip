@@ -574,10 +574,10 @@ class Gossip:
                 if peer in peer_sample:
                     peer_sample.remove(peer)
 
-            # forward
-            for peer in peer_sample:
-                if peer.is_fully_validated():
-                    await peer.send_peer_announce(msg_id, ttl, dtype, data)
+                # forward
+                for peer in peer_sample:
+                    if peer.is_fully_validated():
+                        await peer.send_peer_announce(msg_id, ttl, dtype, data)
         return
 
     async def __get_peer_sample(self):
