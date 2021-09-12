@@ -322,8 +322,12 @@ class Peer_connection:
         Arguments:
         - message (byte-object) -- message that should be send
         """
-        self.__writer.write(message)
-        await self.__writer.drain()
+        try:
+            self.__writer.write(message)
+            await self.__writer.drain()
+        except ConnectionResetError:
+            # Will already close if run was called
+            return
 
     async def __handle_incoming_message(self, buf):
         """Checks the type of an incoming message in byte format and calls the

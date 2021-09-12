@@ -87,12 +87,10 @@ class Api_connection:
         See also:
         - get_own_address()
         """
-        tmp = self.__writer.get_extra_info("peername")
-        if tmp is None:
+        address = self.__writer.get_extra_info("peername")
+        if address is None:
             return ''
-        (host, port) = tmp
-        address = "{}:{}".format(host, port)
-        return address
+        return "{}:{}".format(address[0], address[1])
 
     def get_own_address(self):
         """Returns the listening address of ourselves locally in the format
@@ -101,9 +99,10 @@ class Api_connection:
         See also:
         - get_api_address()
         """
-        (host, port) = self.__writer.get_extra_info("sockname")
-        address = "{}:{}".format(host, port)
-        return address
+        address = self.__writer.get_extra_info("sockname")
+        if address is None:
+            return ''
+        return "{}:{}".format(address[0], address[1])
 
     async def __handle_gossip_announce(self, buf):
         tmp = parse_gossip_announce(buf)
@@ -179,4 +178,9 @@ class Api_connection:
     async def send_gossip_notification(self, msg_id, dtype, data):
         buf = build_gossip_notification(msg_id, dtype, data)
         logging.info(f"[API] Sending GOSSIP_NOTIFICATION to {self}")
-        self.__writer.write(buf)
+        try:
+            self.__writer.write(buf)
+            await self.__writer.drain()
+        except ConnectionResetError:
+            # Will already close if run was called
+            return
