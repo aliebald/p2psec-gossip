@@ -3,6 +3,11 @@ HOWTO:
     1. Run the main.py
     2. Run this program
     3. Be patient (~10s)
+
+- Connects 2 APIs
+- Connects 1 Peer
+- Subscribe with both APIs to "1"
+- Send GOSSIP ANNOUNCE with Api1 with datatype "1"
 """
 
 import socket
@@ -20,7 +25,7 @@ async def main():
 async def test_gossip_announce():
     """This test subscribes with 2 APIs to the datatype 1 and validates with
     both after the PEER_ANNOUNCE"""
-    peer1 = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    peer = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     api1 = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     api2 = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
@@ -36,28 +41,25 @@ async def test_gossip_announce():
 
     # Connect peers, perform handshake
     print("Connecting peers, performing Handshake by waiting for intervall..")
-    peer1.connect(('127.0.0.1', 6001))
-    task_handshake1 = asyncio.create_task(perform_handshake(peer1, 6001))
+    peer.connect(('127.0.0.1', 6001))
+    task_handshake = asyncio.create_task(perform_handshake(peer, 6001))
 
-    handshakes = asyncio.gather(task_handshake1)
+    handshakes = asyncio.gather(task_handshake)
 
     # Wait for the handshake to complete
     await handshakes
     print("[+] Handshake finished")
 
+    # Start Handler of Api2
+    # Start Handler of Peer
     # Send GOSSIP ANNOUNCE with Api1
+    t1 = asyncio.create_task(api2_handler(api2))
+    t2 = asyncio.create_task(peer_handler(peer))
+    tasks = asyncio.gather(t1, t2)
     api1.sendall(struct.pack(pp.FORMAT_GOSSIP_ANNOUNCE+"H", 12,
                              pp.GOSSIP_ANNOUNCE, 2, 0, 1, 0))
-
-    task_api2 = asyncio.create_task(api2_handler(api2))
-
-    # Send PEER_ANNOUNCE with Peer1
-    peer1.send(pp.pack_peer_announce(1, 2, 1, b''))
-    print("Sent PEER ANNOUNCE with Peer1")
-
-    await api_tasks
-
-    close_all([api1, api2, peer1])
+    await tasks
+    close_all([api1, api2, peer])
     return
 
 
@@ -91,20 +93,6 @@ async def await_message(socket):
         return None
 
 
-async def api1_handler(socket):
-    buf = await await_message(socket)
-    if buf is None:
-        return
-    mtype = pp.get_header_type(buf)
-    if mtype == pp.GOSSIP_NOTIFICATION:
-        print("[+] Received GOSSIP NOTIFICATION with Api1")
-        socket.send(struct.pack(pp.FORMAT_GOSSIP_VALIDATION, 8,
-                    pp.GOSSIP_VALIDATION, 1, 1))
-    else:
-        print("[-]: Did not receive GOSSIP NOTIFICATION with Api1")
-    return
-
-
 async def api2_handler(socket):
     buf = await await_message(socket)
     if buf is None:
@@ -119,7 +107,7 @@ async def api2_handler(socket):
     return
 
 
-async def peer2_handler(socket):
+async def peer_handler(socket):
     while True:
         buf = await await_message(socket)
         if buf is None:
