@@ -166,13 +166,10 @@ class Gossip:
         - peer_addresses (str List) -- addresses of potential peers, received
           from peer offer. format: host_ip:port
         """
-        num_pull_peers = len(self.__pull_peers)
-        num_unverified_peers = len(self.__unverified_peers)
-        if num_pull_peers + num_unverified_peers >= self.__max_pull_peers:
+        if len(self.__pull_peers) > self.__max_pull_peers:
             logging.debug("[PEER] Ignoring peer offer because pull peers "
-                          f"capacity is reached. Verified: {num_pull_peers}, "
-                          f"unverified: {num_unverified_peers}, "
-                          f"max: {self.__max_pull_peers}")
+                          f"capacity is reached ({len(self.__pull_peers)}/"
+                          f"{self.__max_pull_peers})")
             return
 
         logging.info(f"[PEER] Offer contained: {peer_addresses}")
@@ -252,16 +249,33 @@ class Gossip:
         self.__log_connected_peers()
 
     async def __run_peer_control(self):
-        """Ensures that self.push_peers has at least max_push_peers many peers
+        """Searches for new pull peers by sending a peer discovery to all known
+        peers every search_cooldown seconds, if: we can accept more pull pears,
+        we are bellow min_connections (pull & push) or we have less than
+        min_connections/2 pull peers.
         """
         while True:
-            search_new_peers = (
-                len(self.__push_peers) + len(self.__unverified_peers)
-                < self.__max_push_peers
-                and len(self.__push_peers) + len(self.__pull_peers)
+            # True if we can accept more pull peers
+            has_pull_peers_capacity = (
+                len(self.__pull_peers) < self.__max_pull_peers
+            )
+            # True if we need more total peers ro reach min_connections
+            is_bellow_min_connections = (
+                len(self.__pull_peers) + len(self.__push_peers)
                 < self.config.min_connections
             )
-            if search_new_peers:
+            # True if we have less than min_connections/2 pull peers
+            is_bellow_min_pull_connections = (
+                len(self.__pull_peers) < ceil(self.config.min_connections / 2)
+            )
+
+            # Search for new pull peers if we have capacity and need more peer
+            # to reach min_connections or if we have less than
+            # min_connections/2 pull peers (to keep a minimum amount of pull
+            # peers and avoid only having push peers)
+            if (has_pull_peers_capacity and
+                (is_bellow_min_connections or is_bellow_min_pull_connections)
+                ):
                 logging.info("- - - - - - - - - - - - - -")
                 logging.info("[PEER] Looking for new Peers")
                 self.__log_connected_peers()
