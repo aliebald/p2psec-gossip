@@ -58,7 +58,7 @@ class Gossip:
         # Pull peers that we connected to
         self.__pull_peers = []
         # unverified push peers
-        self.__unverified_peers = deque(maxlen=self.cache_size)
+        self.__unverified_peers = deque(maxlen=self.config.cache_size)
         self.apis = []
 
         #                          Key - Value
