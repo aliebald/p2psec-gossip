@@ -92,9 +92,10 @@ def resolve_address(address):
     try:
         ipaddress.ip_address(ip)
     except ValueError:
-        print("Resolved address to")
-        print(f"{socket.gethostbyname(ip)}:{port}")
-        return f"{socket.gethostbyname(ip)}:{port}"
+        try:
+            return f"{socket.gethostbyname(ip)}:{port}"
+        except socket.gaierror:
+            return address
 
     return address
 

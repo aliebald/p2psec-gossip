@@ -343,7 +343,7 @@ class Peer_connection:
             await self.__handle_peer_offer(buf)
         elif type == PEER_INFO:
             logging.info(f"[PEER] Received PEER_INFO from {self}")
-            self.__handle_peer_info(buf)
+            await self.__handle_peer_info(buf)
         elif type == PEER_CHALLENGE:
             logging.info(f"[PEER] Received PEER_CHALLENGE from {self}")
             await self.__handle_peer_challenge(buf)

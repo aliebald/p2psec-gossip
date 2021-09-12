@@ -23,22 +23,22 @@ The following settings can be adjusted in the used config (default = `config.ini
 
 
 - `cache_size`: Maximum number of data items to be held as part of the peer's knowledge base. Older items will be removed to ensure space for newer items if the peer's knowledge base exceeds this limit. Is used for unverified_peers capacity and peer_announce_ids cache size.
-	- Constraints: must be grater than 0.
+	- Constraints: must be greater than 0.
 
 - `degree`: Number of peers this peer exchanges information with. Relevant for PEER ANNOUNCE.
-	- Constraints: must be smaller or equal to min\_connections, min\_connections and grater than 0.
+	- Constraints: must be smaller or equal to min\_connections, min\_connections and greater than 0.
 
 - `min_connections`: Minimum amount of alive connections this peer should try to keep.
-	- Constraints: must be grater than 0 and bellow or equal to min\_connections.
+	- Constraints: must be greater than 0 and bellow or equal to min\_connections.
 
 - `max_connections`: Maximum amount of alive connections this peer keeps.
-	- Constraints: Must be grater than or equal to 2 and min\_connections
+	- Constraints: Must be greater than or equal to 2 and min\_connections
 
 - `search_cooldown`: In this interval it is checked whether we have min connections peers. If not start peer discovery.
-	- Constraints: must be grater than 0.
+	- Constraints: must be greater than 0.
 
 - `challenge_cooldown`: Every challenge\_cooldown seconds the verification process is initiated for all unverified peers. Since this is a security feature, it is not recommended to be experimented with. 
-	- Constraints: must be grater than 0.
+	- Constraints: must be greater than 0.
 
 - `p2p_address`: Listening ip and port number for other Gossip peers. Must be a valid and unused port.
 	- Constraints: must be a valid IPv4 address in the format \<ip>:\<port>

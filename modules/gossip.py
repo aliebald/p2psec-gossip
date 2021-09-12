@@ -447,7 +447,7 @@ class Gossip:
            and closes the socket"""
         await self.__remove_subscriber(api)
         async with self.__apis_lock:
-            if api in self.apis:
+            if api in self.__apis:
                 self.__apis.remove(api)
         # Close the socket
         await api.close()
