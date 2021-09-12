@@ -240,15 +240,22 @@ class Peer_connection:
 
     async def send_peer_challenge(self):
         """Sends a peer challenge message and saves the challenge with a
-        timeout in __peer_challenge. Should only be called once per peer and
-        only if we where not the initiator of the connection.
-        See Project Documentation - Push Gossip"""
+        timeout in __peer_challenge, if no challenge was send before.
+        If this is called an a challenge was already send, the no new challenge
+        will be send, but the peer will be closed if the challenge timeout ran
+        out.
+
+        Should only be called if we where not the initiator of the connection.
+        See Project Documentation - Push Gossip
+        """
         # Check if a peer challenge was already send
         if self.__peer_challenge != None:
-            logging.warning("[PEER] Trying to send a peer challenge, even "
-                            "tough a challenge has already been send")
-            self.__validated_them = False
-            await self.gossip.close_peer(self)
+            # Disconnect it the challenge expired
+            if self.__peer_challenge[1] < time.time():
+                logging.warning(
+                    f"[PEER] PEER CHALLENGE timeout for {self} expired "
+                    f"{time.time() - self.__peer_challenge[1]}s ago")
+                await self.gossip.close_peer(self)
             return
 
         challenge = getrandbits(64)

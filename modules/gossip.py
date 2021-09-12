@@ -325,26 +325,10 @@ class Gossip:
         while True:
             async with self.__unverified_peers_lock:
                 if len(self.__unverified_peers) > 0:
-                    await self.__clean_unverified_peers()
                     for peer in self.__unverified_peers:
                         await peer.send_peer_challenge()
 
             await asyncio.sleep(self.config.challenge_cooldown)
-
-    async def __clean_unverified_peers(self):
-        """Goes through unverified_peers and closes all connections where a
-        PEER CHALLENGE was send and the timeout expired.
-        The __unverified_peers_lock must be acquired before calling this.
-        """
-        for peer in self.__unverified_peers:
-            peer_challenge = peer.get_peer_challenge()
-            current_time = time()
-            if peer_challenge != None and peer_challenge[1] < current_time:
-                # Challenge exists but is timeouted, close connection
-                logging.debug(
-                    f"[PEER] PEER CHALLENGE timeout for {peer} expired "
-                    f"{current_time-peer_challenge[1]}s ago")
-                await self.close_peer(peer, True)
 
     async def print_gossip_debug(self):
         """Prints all Gossip class variables.
