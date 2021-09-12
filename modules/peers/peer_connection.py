@@ -176,6 +176,8 @@ class Peer_connection:
         if self.peer_p2p_listening_port == None:
             return None
         host = self.__writer.get_extra_info("peername")[0]
+        if host == None:
+            return ""
         address = "{}:{}".format(host, self.peer_p2p_listening_port)
         return address
 
@@ -188,9 +190,10 @@ class Peer_connection:
         - get_peer_p2p_listening_address()
         - get_debug_address() or str(Gossip) - for debug output
         """
-        # TODO returns None on error
-        (host, port) = self.__writer.get_extra_info("peername")[0:2]
-        address = "{}:{}".format(host, port)
+        address = self.__writer.get_extra_info("peername")
+        if address == None:
+            return ""
+        address = "{}:{}".format(address[0], address[1])
         return address
 
     def get_own_address(self):
@@ -201,8 +204,10 @@ class Peer_connection:
         - get_peer_p2p_listening_address()
         - get_debug_address() - for debug output
         """
-        (host, port) = self.__writer.get_extra_info("sockname")[0:2]
-        address = "{}:{}".format(host, port)
+        address = self.__writer.get_extra_info("sockname")
+        if address == None:
+            return ""
+        address = "{}:{}".format(address[0], address[1])
         return address
 
     def get_debug_address(self):
