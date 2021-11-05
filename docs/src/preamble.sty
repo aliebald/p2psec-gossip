@@ -1,0 +1,65 @@
+
+%=============================================================================
+% packages
+\usepackage{verbatim} % comment environment
+\usepackage{chngpage}
+\usepackage{bytefield} % packet structure
+\usepackage{booktabs} % toprule, midrule, bottomrule
+\usepackage[margin=3.5cm]{geometry} % custom margins
+\usepackage{titlesec} % format \section etc.
+\usepackage{titling} %; \theauthor
+\usepackage[utf8]{inputenc}
+\usepackage[colorlinks=true, allcolors=blue]{hyperref}
+\usepackage{graphicx} % Pictures; \includegraphics, wrapfigure environment
+\usepackage{xifthen} % smart functions
+\usepackage{hyperref} % clickable
+\usepackage{tikz}
+\usetikzlibrary{arrows,shadows,calc}
+\usepackage{pgf-umlsd}
+\usepackage{enumitem}
+\usepackage{cleveref} % \cref
+\usepackage{enumitem}
+
+%=============================================================================
+% formatting
+
+
+% Font
+\renewcommand{\familydefault}{\sfdefault}
+%\renewcommand{\familydefault}{\rmdefault}
+
+% Title
+\renewcommand{\maketitle}{
+    \begin{center}
+        \Huge{
+            P2P Gossip Protocol-- \\
+        }
+        \LARGE{
+            An Implementation discussing Architectural
+            and Security Standpoints
+        } \\
+        \vspace{0.5cm}
+        \large
+        \theauthor \\
+        \email \\
+        \vspace{0.5cm}
+        Peer-to-Peer Systems and Security \\
+        Project Documentation \\
+        Summerterm 2021 \\
+    \end{center}
+}
+
+
+%=============================================================================
+% Infos/shortcuts
+
+
+\author{
+    Alexander Liebald, Kevin Ploch
+}
+\date{July 2021}
+
+\newcommand{\email}{
+    contact.liebald@gmail.com, contact@ploch.me
+}
+%=============================================================================

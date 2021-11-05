@@ -1,0 +1,651 @@
+\documentclass[14pt, letterpaper]{article}
+\usepackage{preamble}
+
+\begin{document}
+
+\maketitle
+
+\tableofcontents
+
+\section{API}
+This section refers to the API protocol provided by the Chair of Network Architectures and Services as part of the Peer-to-Peer-Systems and Security course. All rights lie with the chair, and any license provided with this project does not apply to this protocol.
+
+As part of this course, it was assumed that all API users behave honestly. Therefore, there are no security precautions to defend against attacks from API users in place. Security is focused on potential attackers within the peer to peer system (gossip to gossip).
+
+\subsection{General Format and Message Header}
+
+All API message integer fields are encoded in network-byte order (Big-endian) and do not contain floating-point numbers.
+
+All messages start with a header displayed in \cref{fig:message_header}. \textbf{Size} defines the size of the whole message. The \textbf{type} identifies the type of the message. These will be elaborated on in the following.
+
+\begin{figure}[h]
+    \centering
+    \begin{bytefield}[bitwidth=0.9em]{32}
+            \bitheader{0,7,8,15,16,23,24,31} \\
+            \bitbox{16}{size} & \bitbox{16}{type}
+    \end{bytefield}
+    \caption{Message header format}
+    \label{fig:message_header}
+\end{figure}
+
+\begin{table}[htbp]
+    \centering
+    \begin{tabular}{l c}
+        \toprule
+        \textbf{type} & \textbf{field value} \\
+        \midrule
+        GOSSIP ANNOUNCE & 500 \\
+        \midrule
+        GOSSIP NOTIFY & 501 \\
+        \midrule
+        GOSSIP NOTIFICATION & 502 \\
+        \midrule
+        GOSSIP VALIDATION & 503 \\
+        \bottomrule
+    \end{tabular}
+    \caption{Message types and their protocol field values}
+    \label{tab:message_types}
+\end{table}
+
+\subsection{GOSSIP ANNOUNCE}
+
+API users can utilize this message to spread data in the network. It is sent to Gossip's listening API. No return message is provided.
+
+The \textbf{TTL} tells Gossip how many hops this data should traverse. A value of 0 indicates unlimited hops.
+The \textbf{data type} is an identifier for the application data. Every subscriber (explained later) of this data type receives this application \textbf{data}.
+
+The nature of this protocol is best-effort delivery, therefore no confirmations for delivery are sent.
+
+\begin{figure}[h]
+    \centering
+    \begin{bytefield}[bitwidth=0.9em]{32}
+            \bitheader{0,7,8,15,16,23,24,31} \\
+            \begin{rightwordgroup}{Message\\Header}
+                \bitbox{16}{size} & \bitbox{16}{\textbf{GOSSIP ANNOUNCE}}
+            \end{rightwordgroup} \\
+
+            \bitbox{8}{TTL} &
+            \bitbox{8}{reserved} &
+            \bitbox{16}{data type}
+            \\
+
+            \wordbox[lrt]{1}{data} \\
+            \skippedwords \\
+            \wordbox[lrb]{1}{}
+    \end{bytefield}
+    \caption{GOSSIP ANNOUNCE message format}
+    \label{fig:gossip_announce}
+\end{figure}
+
+\subsection{GOSSIP NOTIFY}
+
+This message tells Gossip that the sender is interested in application data of type \textbf{data type}. Therefore Gossip will forward any received GOSSIP ANNOUNCES with type \textbf{data type} to the sender of this message. The second purpose of this message is that it lets Gossip know which data types are valid and should be spread further should the TTL field allow it.
+
+This message does not evoke any response from Gossip and the subscription is cancelled should the API user disconnect.
+
+\begin{figure}[h]
+    \centering
+    \begin{bytefield}[bitwidth=0.9em]{32}
+            \bitheader{0,7,8,15,16,23,24,31} \\
+            \begin{rightwordgroup}{Message\\Header}
+                \bitbox{16}{size} & \bitbox{16}{\textbf{GOSSIP NOTIFY}}
+            \end{rightwordgroup} \\
+
+            \bitbox{16}{reserved} &
+            \bitbox{16}{data type} \\
+    \end{bytefield}
+    \caption{GOSSIP NOTIFY message format}
+    \label{fig:gossip_announce}
+\end{figure}
+
+\subsection{GOSSIP NOTIFICATION}
+
+When Gossip receives a message from another Peer, it notifies all subscribers of the received data type by sending them a GOSSIP NOTIFICATION with the received \textbf{data}. \textbf{Message ID} is a random number identifying this message and the corresponding GOSSIP VALIDATION, which the API user receiving this message has to reply with.
+
+\begin{figure}[h]
+    \centering
+    \begin{bytefield}[bitwidth=0.9em]{32}
+            \bitheader{0,7,8,15,16,23,24,31} \\
+            \begin{rightwordgroup}{Message\\Header}
+                \bitbox{16}{size} & \bitbox{16}{\textbf{GOSSIP NOTIFICATION}}
+            \end{rightwordgroup} \\
+
+            \bitbox{16}{message ID} &
+            \bitbox{16}{datatype} \\
+
+            \wordbox[lrt]{1}{data} \\
+            \skippedwords \\
+            \wordbox[lrb]{1}{}
+    \end{bytefield}
+    \caption{GOSSIP NOTIFICATION message format}
+    \label{fig:gossip_notification}
+\end{figure}
+
+\subsection{GOSSIP VALIDATION}
+
+This message is send as a response to GOSSIP NOTIFICATION, telling Gossip whether the message with \textbf{message ID} is well-formed (\textbf{V}-bit = 1) or not (\textbf{V}-bit = 0). Only after all notified API users validate the message, it is propagated further. In case an API users responds with invalid, the message with the given message id is discarded.
+
+\begin{figure}[h]
+    \centering
+    \begin{bytefield}[bitwidth=0.9em]{32}
+            \bitheader{0,7,8,15,16,23,24,31} \\
+            \begin{rightwordgroup}{Message\\Header}
+                \bitbox{16}{size} & \bitbox{16}{\textbf{GOSSIP VALIDATION}}
+            \end{rightwordgroup} \\
+
+            \bitbox{16}{message ID} &
+            \bitbox{15}{reserved} &
+            \bitbox{1}{V}
+            \\
+    \end{bytefield}
+    \caption{GOSSIP VALIDATION message format}
+    \label{fig:gossip_announce}
+\end{figure}
+
+\section{Architecture}
+
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[scale=0.2]{Gossip_Control_Flow.png}
+  \caption{Flow chart for main.py and Gossip class}
+  \label{fig:gossip_flow_chart}
+\end{figure}
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[scale=0.25]{API_Control_Flow.png}
+    \caption{Flow chart, Api\_connection}
+    \label{fig:api_flow_chart}
+\end{figure}
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[scale=0.22]{Peer_Control_Flow.png}
+    \caption{Flow chart, Peer\_connection}
+    \label{fig:api_flow_chart}
+\end{figure}
+
+\subsection{Project Folder Structure}
+The folder structure is split into the following:
+
+\setlist[enumerate,1]{leftmargin=2cm}
+\begin{enumerate}[]
+    \item[\textbf{config.ini}] Configuration file in Windows INI file format. Read by the program at startup, for a detailed description and a list of all possible parameters, see section \ref{sec:config}
+    \item[\textbf{main.py}] Main file, execute to start. For details see \cref{sec:executing_the_program}.
+    \item[\textbf{docs/}] Documentation
+    \item[\textbf{modules/}] Contains most of the code, file contents will be explained in this section and can also be seen in a short overview at the top of each module.
+    \item[\textbf{test\_configs/}] Configuration files for testing, see \cref{sec:testing}
+    \item[\textbf{testing/}] black box testing and unit tests, see \cref{sec:testing}.
+\end{enumerate}
+
+
+\subsection{Logical Structure} \label{sec:logical_structure}
+To provide a clear and understandable architecture, we decided to use a class based approach. A UML diagram of all classes can be seen in figure \ref{fig:uml_class_diagram}. Besides these classes we also used smaller modules, which provide some functionality, which is used in multiple parts of the program.
+
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width = \textwidth]{UML_Class_Diagram_v2.png}
+  \caption{Gossip UML class diagram}
+  \label{fig:uml_class_diagram}
+\end{figure}
+
+\subsubsection{Gossip Class} \label{sec:gossip}
+The Gossip class is central to the software.
+After initializing it and calling its run() function, the program starts socket listeners for peer and API connections.
+Should a new connection be received, an instance of either Api\_connection or Peer\_connection is initiated (see \cref{sec:peer_connection} and \cref{sec:api_connection}).
+Also the bootstrap procedure is started by connecting to either peers given in the config or a bootstrapping node (see \ref{sec:config}).
+To further maintain a certain level of connectivity to the P2P network it also starts peer\_control, which is responsible for searching new pull peers using PEER DISCOVERY every \texttt{search-cooldown} seconds, and peer\_verifier, which periodically sends out PEER CHALLENGE-s every \texttt{challenge-cooldown} seconds to unverified push peers to initiate the verification process (see \cref{sec:handshake}).
+Gossip manages all central information about API and peer functionality in several data structures, see \cref{tab:gossip_variables}.
+
+In general, whenever a message arrives in Peer/Api\_connection and we need to update a data structure e.g. by removing an API connection from the \textit{apis} list, these changes are handled by the Gossip class as it contains these data structures.
+
+\begin{table}[htbp]
+    \centering
+    \begin{tabular}{l l c}
+        \toprule
+        \textbf{Variable} & \textbf{Purpose} & \textbf{Data structure} \\
+        \midrule
+        push\_peers & peers aquired from PUSH Gossip & \href{https://docs.python.org/3/library/collections.html#collections.deque}{deque}\\
+        \midrule
+        pull\_peers & peers aquired from PULL Gossip & list \\
+        \midrule
+        unverified\_peers & PULL peers without completed handshake & \href{https://docs.python.org/3/library/collections.html#collections.deque}{deque}\\
+        \midrule
+        apis & connected API users & list \\
+        \midrule
+        datasubs & API subscribers of a datatype & dictionary \\
+        \midrule
+        peer\_announce\_ids & Prevent spreading loops & Setqueue (\ref{sec:setqueue}) \label{sec:routing_ids}
+        \\
+        \midrule
+        announces\_to\_verify & PEER ANNOUNCES we are awaiting API confirmation for & dictionary \\
+        \bottomrule
+    \end{tabular}
+    \caption{Gossip Class Datastructure Overview}
+    \label{tab:gossip_variables}
+\end{table}
+
+\subsubsection{Peer\_connection Class} \label{sec:peer_connection}
+An instance of Peer\_connection represents a connection to another peer. The class provides the functions to communicate with the other peer and a run() function, which waits for incoming messages from the connected peer.
+As soon as a message arrives it passes one central handling function, which determines the next step by checking the messsage type in the header.
+The peer message types are listed in \cref{tab:peer_overview}.
+Next the individual handling functions of each type message type checks whether the size field matches the actual size of the packet. Then the program flow continues depending on the message.
+
+\subsubsection{Api\_connection Class} \label{sec:api_connection}
+Api\_connection works similarly to its peer counterpart, representing an active connection to a single API. Instead of peer protocol messages it handles API protocol messages specified in the course project specification.
+
+\subsubsection{Config Class} \label{sec:config}
+The Config provides an abstraction for config files. It contains parsing and allows for quick access to config parameters.
+The Config module also contains a `config\_config` variable, which is used as a blueprint for parsing config files. It allows quick and easy addition of new parameters, setting default values, types and constraints / checks.
+\\
+
+The following variables are available:
+
+\begin{itemize}
+    \item \texttt{cache\_size}: Maximum number of data items to be held as part of the peer's knowledge base. Older items will be removed to ensure space for newer items if the peer's knowledge base exceeds this limit. Is used for \texttt{unverified\_peers} capacity and \texttt{peer\_announce\_ids} cache size\\
+    Constraints: must be greater than 0.
+    \item \texttt{degree}: Number of peers this peer exchanges information with. Relevant for PEER ANNOUNCE.\\
+    Constraints: must be smaller or equal to \texttt{min\_connections}, \texttt{min\_connections} and grater than 0.
+    \item \texttt{min\_connections}: Minimum amount of alive connections this peer should try to keep.\\
+    Constraints: must be greater than 0 and bellow or equal to \texttt{min\_connections}.
+    \item \texttt{max\_connections}: Maximum amount of alive connections this peer should keep.\\
+    Constraints: Must be greater than or equal to 2 and \texttt{min\_connections}.
+    \item \texttt{search\_cooldown}: In this interval it is checked whether we have \texttt{min\_connections} peers. If not start search.\\
+    Constraints: must be greater than 0. If this variable is not given the default value of 1 minute is used.
+    \item \texttt{challenge\_cooldown}: Every challenge\_cooldown seconds the verification process (\cref{sec:handshake}) is initiated for all unverified peers. Since this is a security feature, it is not recommended to be experimented with.\\
+    Constraints: must be greater than 0. If this variable is not given the default value of 5 minutes is used.
+    \item \texttt{bootstrapper}: One trustworthy bootstrapping node, used as a fallback in case no known\_peers are given or none can be reached.\\
+    Constraints: must be a valid IPv4, IPv6 address or domain in the format \texttt{<address>:<port>}
+    \item \texttt{p2p\_address}: Listening ip and port number for other Gossip peers. Must be a valid and unused port.\\
+    Constraints: must be a valid IPv4, IPv6 address or domain in the format \texttt{<address>:<port>}
+    \item \texttt{api\_address}: Listening ip and port number for API users. Must be a valid and unused port.\\
+    Constraints: must be a valid IPv4, IPv6 address or domain in the format \texttt{<address>:<port>}
+    \item \texttt{known\_peers}: Comma separated list of peers to bootstrap through, if it is empty consult \texttt{bootstrapper}.\\
+    Constraints: must have the format: \texttt{<address>:<port>,<address>:<port>}. Can also be left out / not required
+\end{itemize}
+
+\noindent{}All variables, besides \texttt{search\_cooldown}, \texttt{challenge\_cooldown} and \texttt{known\_peers} are required. If a variable is missing or malformed, the program will log an error and exit.\\
+To reload the config, the program must be restarted.
+
+\subsubsection{Utility Module} \label{sec:setqueue}
+The utility module (\textit{util.py}) provides utility functions which wouldn't explicitly fit into another module.
+It contains a custom datastructure, the Setqueue, which is a modified FIFO queue with the property of not having duplicate elements in it. It is used for storing routing IDs of already received packets to avoid message loops. The utility module also contains functions for generating and checking Proof of Work, parsing and validating ip addresses as well as resolving domains to ip addresses.
+
+\subsubsection{Packet Parser Module}
+The packet parser module provides functions for parsing byte-objects to tuples consisting of the specified protocol fields and vice-versa for building byte-objects for protocol messages. Whenever a parameter is wrong or a byte-object doesn't fit the protocol message criteria, \textit{None} is returned.
+
+
+\subsection{Process Architecture}
+We utilize pythons \textit{Asyncio} library for asynchronous code execution.
+The Gossip class runs two parallel tasks with sockets waiting for connections on the API or peer listening port. Additionally, tasks for verifying peers within the \texttt{challenge\_cooldown} interval and finding new peers within the \texttt{search\_cooldown} exist.
+If new connections are established, an instance of Peer- or Api\_connection is initiated and its run() method is started as a new parallel task.
+There, new messages from this peer or API are awaited, received and handled.
+
+\subsection{Security Measures} \label{sec:security}
+
+\subsubsection{Attacker model}
+As this is a peer to peer application, we want others to participate by running own nodes and so form a P2P network. What we do not want is one entity controlling a lot of nodes in the network, which gives them the ability to isolate nodes, a so called \textit{Sybill attack}.\\
+When looking at the analogy of the OSI model, the lower layers (1-3) take on the responsibility of connectivity through single and multihop communication.
+Authentication and encryption in TCP/IP is done in upper layers. We apply the same for Gossip as a bottom level protocol for an application. It exists to build new connections and hold them, aswell as keeping enough connectivity to the network.
+Further security can be built on top of Gossip.
+Therefore we decided \textbf{not} to include node authentication nor communication encryption between peers.
+
+\paragraph{Security Mechanisms Overview:}
+\setlist[enumerate,1]{leftmargin=0.5cm}
+\begin{enumerate}
+    \item When receiving a malformed or unknown message, the corresponding connection is terminated immediately. Since TCP is used as an underlying networking protocol, it is assumed that malformed messages are not the result of an networking error but an error that occurred on the side of the connected peer / a malicious peer.
+
+    \item \textbf{Connection establishment}: In an interval we perform a Proof of Work handshake on all unverified peers that connected to us in this interval to limit short-term sybil attacks.
+
+    \item \textbf{FIFO push peers}: Oldest push connections get replaced first, should new incoming connections arrive and the push peers capacity is reached. This makes long-term attacks even more difficult.
+
+    \item \textbf{PUSH/PULL Gossip}: PUSH and PULL peers are differentiated, each with their own capacity. For more details see \cref{sec:push_pull_gossip}.
+
+\end{enumerate}
+
+\subsubsection{Connection Establishment / Handshake} \label{sec:handshake}
+
+\begin{figure}[t]
+    \centering
+    \begin{sequencediagram}
+        \tikzstyle{inststyle}=[rectangle,anchor=west,minimum height=1.5cm, minimum width=5cm, fill=white]
+        \tikzstyle{dotted}=[line width=2pt,black]
+        \newinst{p1}{PEER 1 (Initiator)}
+        \newinst{p2}{PEER 2 (Receiver)}
+        \mess{p1}{PEER INFO}{p2}
+        \mess{p2}{PEER CHALLENGE}{p1}
+        \mess{p1}{PEER VERIFICATION}{p2}
+        \mess{p2}{PEER VALIDATION}{p1}
+    \end{sequencediagram}
+    \caption{Handshake upon connection establishment}
+    \label{fig:handshake}
+\end{figure}
+
+If one node (initiator) wants to connect to another (receiver), it will open up a connection to the listening port of the node and start the handshake depicted in \cref{fig:handshake}.
+
+The initiator starts with a PEER INFO message, which lets the receiving node know of the initiators listening port (see \cref{sec:peer_info}).
+Now begins a break.
+Connections that get opened by an initiator will be put on hold by the receiver.
+In a regular interval, defined with the \textit{challenge\_cooldown} variable (see \cref{sec:config}), the receiver will challenge all initiators that connected in this interval at once with a Proof of Work puzzle.
+The duration of the interval is configurable, see \cref{sec:config}.
+This Proof of Work procedure begins with a PEER CHALLENGE message (see \cref{sec:peer_challenge}), which contains a 64 bit challenge. The challenge is unique for each initiator to prevent sharing of solutions. A correct solution consists of SHA512(challenge,nonce) (with padding in compliance with RFC 6234), where the input are the byte-objects of challenge and nonce concatenated, with the first \textbf{24 bits} set to zero in the hash.\\
+For future improvements see \cref{sec:future_work}.
+
+Upon finding such a nonce, the initiator sends the nonce in a PEER VERIFICATION message (see \cref{fig:peer_verification}) to the receiver. Should this verification take longer than 5 minutes, the challenge is considered expired and the connection is closed by the receiver.
+
+The receiver checks the nonce by trying to solve the challenge with the given nonce. He will finish the handshake by sending a PEER VALIDATION message, which gives the initiator the feedback whether he solved the challenge correctly and now is a peer of the receiver or it failed (see \cref{sec:peer_validation}). Only after receiving a valid VALIDATION all other messages, which are not required in the handshake, are allowed.
+
+\subsubsection{PUSH / PULL Gossip} \label{sec:push_pull_gossip}
+Each peer maintains two different types of connections which depend on the perspective.
+When learning about a node and opening a connection to it, this node is considered a \textbf{pull peer}.
+If another node is opening a connection to us, this node is a \textbf{push peers}. Until a peer is verified (\cref{sec:handshake}), push peers are considered \textbf{unverified peers}. These do not count towards the capacity of push peers and communication is limited to the verification process.
+
+As a defence precaution, the maximum peer capacity given by max\_connections (\cref{sec:config}) is split up between pull and push peers. In case max\_connections is uneven, the capacity of pull peers will be larger by one compared to the capacity of push peers.
+
+After a unverified peer has been verified, it is added to push peers. In case push peers has reached its capacity, the oldest push peer will be closed. This, in combination with the verification process, helps to defend against eclipse attacks by updating possible routes, therefore making it harder to continuously stay in contact with a peer (see lecture 6).
+
+\subsection{Protocol Messages}
+\begin{table}[h]
+    \centering
+    \begin{tabular}{c l l}
+        \toprule
+        \textbf{Number} & \textbf{Name} & \textbf{Purpose} \\
+        \midrule
+        504 & PEER ANNOUNCE & spreading of knowledge \\
+        \midrule
+        505 & PEER DISCOVERY & discovering new peers \\
+        \midrule
+        506 & PEER OFFER & spreading information about other peers \\
+        \midrule
+        507 & PEER INFO & Proof of Work Handshake, listening port information \\
+        \midrule
+        508 & PEER CHALLENGE & Proof of Work Handshake, challenge
+        \\
+        \midrule
+        509 & PEER VERIFICATION & Proof of Work Handshake, nonce
+        \\
+        \midrule
+        510 & PEER VALIDATION & Proof of Work Handshake, true/false
+        \\
+        \bottomrule
+    \end{tabular}
+    \caption{Peer Message Overview}
+    \label{tab:peer_overview}
+\end{table}
+
+\subsubsection{PEER ANNOUNCE} \label{sec:peer_announce}
+The PEER ANNOUNCE message is central in spreading information from one peer to another. GOSSIP ANNOUNCE messages from APIs are translated to this message for further spreading. As can be seen in \cref{fig:peer_announce}, it has similar protocol fields. One addition is the 64 bit id field, which is used to differentiate messages from each other and prevent message spreading loops. The corresponding datastructure in the Gossip class is \textit{peer\_announce\_ids} (see \cref{sec:gossip}).
+
+In case we receive a PEER ANNOUNCE from a peer we keep spreading it if and only if we know about this datatype by having API subscribers to it. If we have a subscriber to this datatype, we transform the PEER ANNOUNCE into a GOSSIP NOTIFICATION. If we receive a negative PEER VALIDATION from the API that received the NOTIFICATION, we do not propagate it further.
+
+The TTL field functions equally to the GOSSIP ANNOUNCE TTL field. A value of zero equals to infinite and one means it is ending at this node. It is decremented on every hop.
+
+\begin{figure}[h]
+    \centering
+    \begin{bytefield}[bitwidth=0.9em]{32}
+            \bitheader{0,7,8,15,16,23,24,31} \\
+            \begin{rightwordgroup}{Message\\Header}
+                \bitbox{16}{size} & \bitbox{16}{\textbf{PEER ANNOUNCE}}
+            \end{rightwordgroup} \\
+            \wordbox[tlr]{2}{id (64 bits)} \\
+            \bitbox{8}{TTL} & \bitbox{8}{reserved} & \bitbox{16}{datatype} \\
+            \wordbox[lrt]{1}{data} \\
+            \skippedwords \\
+            \wordbox[lrb]{1}{}
+    \end{bytefield}
+    \caption{PEER ANNOUNCE message format}
+    \label{fig:peer_announce}
+\end{figure}
+
+\subsubsection{PEER DISCOVERY} \label{sec:peer_discovery}
+\Cref{fig:peer_discovery} shows this message. It tells the receiver that this node wants to extend his connectivity by asking for new pull peers.
+
+To find new pull peers, do the following:
+\begin{verbatim}
+    capacity        = current push peers < max push peers
+    below_min      = current push & pull peers < min_connections
+    below_min_push = current pull peers < min_connections / 2
+
+    while running
+        if capacity and (below_min or below_min_push)
+            1. Send PEER DISCOVERY to all verified peers
+            2. Peers respond (PEER OFFER) with a list
+               containing all their known peers
+            3. Connect to peers in all given lists in a random order
+               until we reach max push peers.
+        sleep for search_cooldown seconds
+\end{verbatim}
+
+\begin{figure}[h]
+    \centering
+    \begin{bytefield}[bitwidth=0.9em]{32}
+            \bitheader{0,7,8,15,16,23,24,31} \\
+            \begin{rightwordgroup}{Message\\Header}
+                \bitbox{16}{size} & \bitbox{16}{\textbf{PEER DISCOVERY}}
+            \end{rightwordgroup} \\
+    \end{bytefield}
+    \caption{PEER DISCOVERY message format}
+    \label{fig:peer_discovery}
+\end{figure}
+
+\subsubsection{PEER OFFER} \label{sec:peer_offer}
+\Cref{fig:peer_offer} shows this message.
+Answer to a PEER DISCOVERY message. Includes the senders peer list. We remove the sender of the PEER DISCOVERY from the list before sending it.
+
+\begin{figure}[h]
+    \centering
+    \begin{bytefield}[bitwidth=0.9em]{32}
+            \bitheader{0,7,8,15,16,23,24,31} \\
+            \begin{rightwordgroup}{Message\\Header}
+                \bitbox{16}{size} & \bitbox{16}{\textbf{PEER OFFER}}
+            \end{rightwordgroup} \\
+            \wordbox[lrt]{1}{data} \\
+            \skippedwords \\
+            \wordbox[lrb]{1}{}
+
+    \end{bytefield}
+    \caption{PEER OFFER message format}
+    \label{fig:peer_offer}
+\end{figure}
+
+\subsubsection{PEER INFO} \label{sec:peer_info}
+The PEER INFO message is part of the connection establishment handshake and tells the opposing end of this nodes listening port for new connections.
+It's structure can be seen in \cref{fig:peer_info}.
+This message is necessary since the port used to connect to another peer is dynamic and not equal to the p2p address port. This port number is also spread further in the network through each peers list when answering with PEER OFFER to PEER DISCOVERY to enable connection establishment.
+
+\begin{figure}[h]
+    \centering
+    \begin{bytefield}[bitwidth=0.9em]{32}
+            \bitheader{0,7,8,15,16,23,24,31} \\
+            \begin{rightwordgroup}{Message\\Header}
+                \bitbox{16}{size} & \bitbox{16}{\textbf{PEER INFO}}
+            \end{rightwordgroup} \\
+            \bitbox{16}{reserved} & \bitbox{16}{p2p listening port}
+    \end{bytefield}
+    \caption{PEER INFO message format}
+    \label{fig:peer_info}
+\end{figure}
+
+\subsubsection{PEER CHALLENGE} \label{sec:peer_challenge}
+
+The PEER CHALLENGE is the second message of the connection establishment handshake.
+As can be seen in figure \ref{fig:peer_challenge} it mainly consists of its header and a 64 bit challenge. For more details on the proof of work handshake see \cref{sec:handshake}.
+\begin{figure}[h]
+    \centering
+    \begin{bytefield}[bitwidth=0.9em]{32}
+            \bitheader{0,7,8,15,16,23,24,31} \\
+            \begin{rightwordgroup}{Message\\Header}
+                \bitbox{16}{size} & \bitbox{16}{\textbf{PEER CHALLENGE}}
+            \end{rightwordgroup} \\
+            \wordbox{2}{challenge (64 bits)}
+    \end{bytefield}
+    \caption{PEER CHALLENGE message format}
+    \label{fig:peer_challenge}
+\end{figure}
+
+\subsubsection{PEER VERIFICATION} \label{sec:peer_verification}
+The PEER VERIFICATION is the third message in the handshake and is used to send a found nonce in the Proof of Work procedure (see \cref{sec:handshake}).
+Its simple structure can be seen in figure \cref{fig:peer_verification}.
+\begin{figure}[h]
+    \centering
+    \begin{bytefield}[bitwidth=0.9em]{32}
+            \bitheader{0,7,8,15,16,23,24,31} \\
+            \begin{rightwordgroup}{Message\\Header}
+                \bitbox{16}{size} & \bitbox{16}{\textbf{PEER VERIFICATION}}
+            \end{rightwordgroup} \\
+            \wordbox{2}{nonce (64 bits)}
+    \end{bytefield}
+    \caption{PEER VERIFICATION message format}
+    \label{fig:peer_verification}
+\end{figure}
+
+\subsubsection{PEER VALIDATION} \label{sec:peer_validation}
+The PEER VALIDATION message is the last message in the handshake and tells the receiver whether he is now a verified peer for the sender or not. This is indicated in a bitfield, as can be seen in \cref{fig:peer_validation}.
+A set bit indicates a positive feedback.
+
+The structure of the PEER VALIDATION message can be seen in figure \ref{fig:peer_validation}.
+\begin{figure}[h]
+    \centering
+    \begin{bytefield}[bitwidth=0.9em]{32}
+            \bitheader{0,7,8,15,16,23,24,31} \\
+            \begin{rightwordgroup}{Message\\Header}
+                \bitbox{16}{size} & \bitbox{16}{\textbf{PEER VALIDATION}}
+            \end{rightwordgroup} \\
+            \bitbox{16}{reserved} &
+            \bitbox{15}{reserved} &
+            \bitbox{1}{V}
+    \end{bytefield}
+    \caption{PEER VALIDATION message format}
+    \label{fig:peer_validation}
+\end{figure}
+
+\subsection{Testing} \label{sec:testing}
+\subsubsection{Unit Tests}
+
+\paragraph{packet\_parser.py}
+Unit tests for the packet parsing functions are defined in \textbf{/testing/test\_packet\_parser.py}
+
+The test can be executed with:
+
+\begin{verbatim}
+    python3.9 testing/test_packet_parser.py
+\end{verbatim}
+
+\paragraph{test\_config.py}
+Unit tests for the Config class are defined in \textbf{/testing/test\_config.py}
+
+The test can be executed with:
+
+\begin{verbatim}
+    python3.9 testing/test_config.py
+\end{verbatim}
+
+\subsubsection{Blackbox Tests}
+
+Blackbox tests help in testing parts of the application by creating mock API connections and/or peers, send data and observe how the system behaves.
+
+\paragraph{Running Blackbox Tests}
+\begin{enumerate}
+    \item Start Gossip with the special test config:
+    \begin{verbatim}
+        $ python3.9 main.py -p test_configs/blackbox_config.ini
+    \end{verbatim}
+    It has a low challenge cooldown for a quick handshake after starting the tests instead of waiting for a full intervall of e.g. 5 minutes
+    \item In a new shell, start the test.
+\end{enumerate}
+
+\paragraph{Handshake functionality}
+To test the handshake of Gossip run the test \textbf{testing/test\_handshake.py} according to the description above:
+\begin{verbatim}
+    # 1. Start Gossip
+    $ python3.9 main.py -p test_configs/blackbox_config.ini
+    # 2. In a second shell
+    $ python3.9 testing/blackbox_test_handshake.py
+\end{verbatim}
+This test uses a mock peer to connect to the running Gossip software and performs the connection establishment handshake.
+
+\paragraph{PEER ANNOUNCE functionality}
+To test the correct handling of PEER ANNOUNCEs run the python program \textbf{testing/blackbox\_test\_pannounce.py} according to the description above:
+\begin{verbatim}
+    # 1. Start Gossip
+    $ python3.9 main.py -p test_configs/blackbox_config.ini
+    # 2. In a second shell
+    $ python3.9 testing/blackbox_test_pannounce.py
+\end{verbatim}
+The test program is going to test a scenario with 2 connected mock Peers and 2 connected mock API users. They will connect to our Gossip instance we started before, which is listening for new connections. The peers will complete the handshake and the APIs will subscribe to the datatype 1 by sending a GOSSIP NOTIFY. After this setup one peer sends a PEER ANNOUNCE with the datatype 1. We check whether this triggers GOSSIP NOTIFICATIONs to the APIs and if thats the case we answer with a GOSSIP VALIDATION from both. Now Gossip should spread the PEER ANNOUNCE in the network by taking a sample of size degree, which will effectively be the peer that we not send the PEER ANNOUNCE from (we do not send it back to the sender). Lastly we check whether this peer received said PEER ANNOUNCE.
+
+\paragraph{GOSSIP ANNOUNCE functionality}
+\begin{verbatim}
+    # 1. Start Gossip
+    $ python3.9 main.py -p test_configs/blackbox_config.ini
+    # 2. In a second shell
+    $ python3.9 testing/blackbox_test_gannounce.py
+\end{verbatim}
+This program tests the handling of GOSSIP ANNOUNCE messages. Two mock API users and one mock peer connect to the running Gossip program. The peer completes the handshake and both APIs send a GOSSIP NOTIFY with datatype 1 to subscribe to said datatype. One API now sends a GOSSIP ANNOUNCE. We test whether the peer receives the now transformed GOSSIP ANNOUNCE in form of a PEER ANNOUNCE.
+
+\section{Software Documentation}
+\subsection{Excursus: Virtual Environments in Python} \label{sec:virtual}
+Although the software runs on windows and linux, this section is targeted at GNU/Linux users.
+For windows reference \href{https://docs.python.org/3/library/venv.html}{see here}.
+
+Your global python installation includes executables and libraries that could impact running this project by e.g. choosing the wrong library version. To avoid headaches like this python provides the useful module \textbf{venv} to create a completely isolated python environment with its own executable and libraries in the project folder. This is accomplished by running
+\begin{verbatim}
+    $ python3.9 -m venv /path/to/project/.venv
+\end{verbatim}
+in the Gossip Project folder. This creates the folder ``.venv'' at the specified path with its own python executable and libraries should you now decide to install some.
+\\
+To enter the environment simply run:
+\begin{verbatim}
+    $ source /path/to/project/.venv/bin/activate
+\end{verbatim}
+and to exit it:
+\begin{verbatim}
+    (venv)$ deactivate
+\end{verbatim}
+You can easily uninstall it by removing the created folder, ``.venv'' in our example.
+
+\subsection{Dependencies}
+To execute the program, Python 3.9 or above is required.
+To install all our library dependencies simply run:
+\begin{verbatim}
+    $ python3 -m pip install -r requirements.txt
+\end{verbatim}
+to install them globally or run it inside a virtual environment (Section \ref{sec:virtual}) to install them for the project only.
+
+\subsection{Executing the program} \label{sec:executing_the_program}
+To run the software, the \textbf{main.py} file must be executed using the Python interpreter.
+\begin{verbatim}
+    $ python3.9 main.py
+\end{verbatim}
+It is possible to change the used configuration file (\cref{sec:config}) by adding \textbf{-p} or \textbf{-{}-path} followed by a path to an existing ini file. The default configuration file is the config.ini in the root folder.\\
+By adding the \textbf{-v} or \textbf{-{}-verbose} flag, additional debug information will be displayed during execution. This Information can give a better and more detailed insight into the execution, but is not required for a overview over events during execution.\\
+With \textbf{-l} or \textbf{-{}-logfile} followed by a valid path, all logging will be written into the file at the end of the path. If the given file does not yet exist, it will be created. Otherwise, new logs will be appended to the current content. Note that the folder structure given in the path must already exist.
+
+\begin{verbatim}
+    $ python3.9 main.py -p config.ini -v -l example.log
+\end{verbatim}
+
+\subsection{Code Conventions}
+\subsubsection{Code Style}
+For a homogenous and readable code style we settled for Python's \href{https://www.python.org/dev/peps/pep-0008/}{PEP 8}.
+
+\subsection{Known issues}
+Mixed Gossip networks with both IPv4 and IPv6 addresses are prone to errors. If a IPv4 peer finds out about a IPv6 peer, he might still connect using an IPv6 and therefore appear twice in the newtork, once with its IPv4 and once with its IPv6.
+
+\section{Further Improvements} \label{sec:future_work}
+
+\subsection{More Tests}
+Generally improving test coverage by adding more tests could improve the project. For example, a blackbox test for PEER DISCOVERY/PEER OFFER interaction would help in debugging problems more easily.
+The coverage of unit tests for PEER packets in testing/packet\_parser.py could be increased.
+
+\subsection{Multiprocessing in Proof of Work}
+The current Proof of Work implementation runs on a single core and therefore uses a rather few leading zero bits of 24 bits. A security improvement would be to adjust to multiprocessing through higher amount of leading zero bits in the target hash. In its current form, solving a challenge is also blocking the rest of the program, which could be solved using an external process which could be awaited.
+
+\subsection{Peer Blacklist}
+Peers that failed to solve the handshake in a moderate time and peers that act maliciously by e.g. sending wrong message formats could be put on a blacklist, therefor denying future communication. Currently we just terminate the connection.
+
+\subsection{Peer List History Sample}
+In addition to filling the peer list with PUSH and PULL peers, a history sample could be included which only includes peers we were previously connected to.
+
+\end{document}
+
