@@ -1,5 +1,7 @@
 # Gossip
-Note: All information within this README is also documented in the [documentation](docs/Endterm_Report.pdf). This README provides a quick overview over the most important options for running this module.
+Gossip implementation developed by [Kevin Ploch](https://github.com/plochk "Kevin Ploch GitHub Profile") and [Alexander Liebald](https://github.com/aliebald "Alexander Liebald GitHub Profile") as part of the Peer-to-Peer-Systems and Security course at TUM.
+
+Note: All information within this README is also documented in the [project documentation](docs/documentation.pdf). This README provides a quick overview over the most important options for running this module. The documentation also contains the api this module provides.
 
 
 ## Setup & Dependencies
@@ -54,3 +56,32 @@ The following settings can be adjusted in the used config (default = `config.ini
 
 - `bootstrapper`: One trustworthy bootstrapping node, used as a fallback in case no known\_peers are given or none can be reached.
 	- Constraints: must be a valid IPv4 address in the format \<ip>:\<port>
+
+## Flow Chart
+![Flow chart](./docs/gossip_control_flow.svg)
+## Class Diagram
+![UML Class Diagram](./docs/gossip_uml_class_diagram.svg)
+
+# License
+
+This project is licensed under the GNU General Public License (GPL) version 3. While the whole application is available under that license, parts of the implementation are based on an API specification provided by the TUM Chair of Network Architectures and Services as part of the Peer-to-Peer-Systems and Security course. This API specification itself, whose documents are not included in this project but referenced in the project documentation, is proprietary and thus not licensed under the GPL.
+
+If you plan to modify or port this program and publish the results while sticking to the original specification, we urge you to email the chair and clarify any questions that might arise regarding licensing.
+
+
+	Gossip implementation developed by Kevin Ploch and Alexander Liebald 
+	as part of the Peer-to-Peer-Systems and Security course at TUM.
+    Copyright (C) 2021 Alexander Liebald, Kevin Ploch
+
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <https://www.gnu.org/licenses/>.
