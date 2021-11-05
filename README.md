@@ -1,6 +1,8 @@
 # Gossip
 Gossip implementation developed by [Kevin Ploch](https://github.com/plochk "Kevin Ploch GitHub Profile") and [Alexander Liebald](https://github.com/aliebald "Alexander Liebald GitHub Profile") as part of the Peer-to-Peer-Systems and Security course at TUM.
 
+This implementation of the Gossip protocol provides connectivity in form of a low level, distributed peer-to-peer network with a flat hierarchy.
+
 Note: All information within this README is also documented in the [project documentation](docs/documentation.pdf). This README provides a quick overview over the most important options for running this module. The documentation also contains the api this module provides.
 
 
